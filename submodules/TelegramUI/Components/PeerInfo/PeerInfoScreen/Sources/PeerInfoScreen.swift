@@ -164,6 +164,7 @@ enum PeerInfoSettingsSection {
     case chatFolders
     case notificationsAndSounds
     case privacyAndSecurity
+    case partygram
     case passwordSetup
     case dataAndStorage
     case appearance

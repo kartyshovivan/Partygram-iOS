@@ -789,7 +789,7 @@ private func privacyAndSecurityControllerEntries(
     
     entries.append(.dataSettings(presentationData.theme, presentationData.strings.PrivacySettings_DataSettings))
     entries.append(.dataSettingsInfo(presentationData.theme, presentationData.strings.PrivacySettings_DataSettingsHelp))
-    
+
     return entries
 }
 

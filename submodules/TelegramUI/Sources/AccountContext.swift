@@ -492,6 +492,8 @@ public final class AccountContextImpl: AccountContext {
             self.isFrozen = isFrozen
         })
         
+        account.setShouldSuppressLocalInputActivities(sharedContext.immediateExperimentalUISettings.hideTypingActivity)
+        account.setShouldSuppressOnlinePresence(sharedContext.immediateExperimentalUISettings.partygramGhostMode && (sharedContext.immediateExperimentalUISettings.partygramGhostDontSendOnline || sharedContext.immediateExperimentalUISettings.partygramGhostAutoOffline))
         self.experimentalUISettingsDisposable = (sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.experimentalUISettings])
         |> deliverOnMainQueue).start(next: { [weak self] sharedData in
             guard let self else {
@@ -500,6 +502,8 @@ public final class AccountContextImpl: AccountContext {
             guard let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) else {
                 return
             }
+            self.account.setShouldSuppressLocalInputActivities(settings.hideTypingActivity)
+            self.account.setShouldSuppressOnlinePresence(settings.partygramGhostMode && (settings.partygramGhostDontSendOnline || settings.partygramGhostAutoOffline))
             (self.animationRenderer as? DCTMultiAnimationRendererImpl)?.useYuvA = settings.compressedEmojiCache
         })
     }

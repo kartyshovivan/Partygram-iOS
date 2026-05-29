@@ -1188,6 +1188,8 @@ public class Account {
     private let managedServiceViewsDisposable = MetaDisposable()
     private let managedServiceViewsActionDisposable = MetaDisposable()
     private let managedOperationsDisposable = DisposableSet()
+    private let shouldSuppressLocalInputActivities = ValuePromise<Bool>(false, ignoreRepeated: true)
+    private let shouldSuppressOnlinePresence = ValuePromise<Bool>(false, ignoreRepeated: true)
     private var storageSettingsDisposable: Disposable?
     private var automaticCacheEvictionContext: AutomaticCacheEvictionContext?
     
@@ -1270,9 +1272,14 @@ public class Account {
         
         self.mediaReferenceRevalidationContext = MediaReferenceRevalidationContext()
         
+        let effectiveShouldKeepOnlinePresence = combineLatest(self.shouldKeepOnlinePresence.get(), self.shouldSuppressOnlinePresence.get())
+        |> map { shouldKeepOnlinePresence, shouldSuppressOnlinePresence -> Bool in
+            return shouldKeepOnlinePresence && !shouldSuppressOnlinePresence
+        }
+
         self.stateManager = AccountStateManager(accountPeerId: self.peerId, accountManager: accountManager, postbox: self.postbox, network: self.network, callSessionManager: self.callSessionManager, addIsContactUpdates: { [weak self] updates in
             self?.contactSyncManager?.addIsContactUpdates(updates)
-        }, shouldKeepOnlinePresence: self.shouldKeepOnlinePresence.get(), peerInputActivityManager: self.peerInputActivityManager, auxiliaryMethods: auxiliaryMethods)
+        }, shouldKeepOnlinePresence: effectiveShouldKeepOnlinePresence, peerInputActivityManager: self.peerInputActivityManager, auxiliaryMethods: auxiliaryMethods)
         
         self.viewTracker = AccountViewTracker(account: self)
         self.viewTracker.resetPeerHoleManagement = { [weak self] peerId in
@@ -1291,7 +1298,7 @@ public class Account {
         
         self.contactSyncManager = ContactSyncManager(postbox: postbox, network: network, accountPeerId: peerId, stateManager: self.stateManager)
         self.localInputActivityManager = PeerInputActivityManager()
-        self.accountPresenceManager = AccountPresenceManager(shouldKeepOnlinePresence: self.shouldKeepOnlinePresence.get(), network: network)
+        self.accountPresenceManager = AccountPresenceManager(shouldKeepOnlinePresence: effectiveShouldKeepOnlinePresence, network: network)
         let _ = (postbox.transaction { transaction -> Void in
             transaction.updatePeerPresencesInternal(presences: [peerId: TelegramUserPresence(status: .present(until: Int32.max - 1), lastActivity: 0)], merge: { _, updated in return updated })
             transaction.setNeedsPeerGroupMessageStatsSynchronization(groupId: Namespaces.PeerGroup.archive, namespace: Namespaces.Message.Cloud)
@@ -1421,7 +1428,11 @@ public class Account {
         self.managedOperationsDisposable.add(managedPeerTimestampAttributeOperations(network: self.network, postbox: self.postbox).start())
         self.managedOperationsDisposable.add(managedSynchronizeViewStoriesOperations(postbox: self.postbox, network: self.network, stateManager: self.stateManager).start())
         self.managedOperationsDisposable.add(managedSynchronizePeerStoriesOperations(postbox: self.postbox, network: self.network, stateManager: self.stateManager).start())
-        self.managedOperationsDisposable.add(managedLocalTypingActivities(activities: self.localInputActivityManager.allActivities(), postbox: self.stateManager.postbox, network: self.stateManager.network, accountPeerId: self.stateManager.accountPeerId).start())
+        let localInputActivities = combineLatest(self.localInputActivityManager.allActivities(), self.shouldSuppressLocalInputActivities.get())
+        |> map { activities, shouldSuppress -> [PeerActivitySpace: [(PeerId, PeerInputActivityRecord)]] in
+            return shouldSuppress ? [:] : activities
+        }
+        self.managedOperationsDisposable.add(managedLocalTypingActivities(activities: localInputActivities, postbox: self.stateManager.postbox, network: self.stateManager.network, accountPeerId: self.stateManager.accountPeerId).start())
         
         let extractedExpr1: [Signal<AccountRunningImportantTasks, NoError>] = [
             managedSynchronizeChatInputStateOperations(postbox: self.postbox, network: self.network) |> map { inputStates in
@@ -1650,6 +1661,14 @@ public class Account {
         return self.localInputActivityManager.acquireActivity(chatPeerId: peerId, peerId: self.peerId, activity: activity)
     }
     
+    public func setShouldSuppressLocalInputActivities(_ value: Bool) {
+        self.shouldSuppressLocalInputActivities.set(value)
+    }
+
+    public func setShouldSuppressOnlinePresence(_ value: Bool) {
+        self.shouldSuppressOnlinePresence.set(value)
+    }
+
     public func addUpdates(serializedData: Data) -> Void {
         /*if let object = Api.parse(Buffer(data: serializedData)) {
             self.stateManager.addUpdates()

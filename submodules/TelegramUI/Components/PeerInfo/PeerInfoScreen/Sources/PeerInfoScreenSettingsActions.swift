@@ -130,6 +130,8 @@ extension PeerInfoScreenNode {
                     }
                 })
             }
+        case .partygram:
+            push(partygramSettingsController(context: self.context))
         case .passwordSetup:
             DispatchQueue.main.asyncAfter(deadline: DispatchTime.now() + 0.6, execute: { [weak self] in
                 guard let self else {

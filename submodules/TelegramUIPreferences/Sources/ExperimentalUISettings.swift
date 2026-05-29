@@ -27,6 +27,25 @@ public struct ExperimentalUISettings: Codable, Equatable {
     
     public var keepChatNavigationStack: Bool
     public var skipReadHistory: Bool
+    public var hideTypingActivity: Bool
+    public var partygramGhostMode: Bool
+    public var partygramGhostDontReadMessages: Bool
+    public var partygramGhostDontReadStories: Bool
+    public var partygramGhostDontSendOnline: Bool
+    public var partygramGhostDontSendTyping: Bool
+    public var partygramGhostAutoOffline: Bool
+    public var partygramGhostReadOnActions: Bool
+    public var partygramGhostUseDelay: Bool
+    public var partygramGhostSilentSendMode: Int32
+    public var partygramGhostSuggestForStories: Bool
+    public var partygramSpySaveDeletedMessages: Bool
+    public var partygramSpySaveEditHistory: Bool
+    public var partygramSpySaveBotChats: Bool
+    public var partygramSpySaveReadDate: Bool
+    public var partygramSpySaveLastOnline: Bool
+    public var partygramSpySaveAttachments: Bool
+    public var partygramSpyAttachmentsFolder: String
+    public var partygramSpyMaxFolderSize: Int32
     public var alwaysDisplayTyping: Bool
     public var crashOnLongQueries: Bool
     public var chatListPhotos: Bool
@@ -78,6 +97,25 @@ public struct ExperimentalUISettings: Codable, Equatable {
         return ExperimentalUISettings(
             keepChatNavigationStack: false,
             skipReadHistory: false,
+            hideTypingActivity: false,
+            partygramGhostMode: false,
+            partygramGhostDontReadMessages: false,
+            partygramGhostDontReadStories: false,
+            partygramGhostDontSendOnline: false,
+            partygramGhostDontSendTyping: false,
+            partygramGhostAutoOffline: false,
+            partygramGhostReadOnActions: false,
+            partygramGhostUseDelay: false,
+            partygramGhostSilentSendMode: 0,
+            partygramGhostSuggestForStories: true,
+            partygramSpySaveDeletedMessages: false,
+            partygramSpySaveEditHistory: false,
+            partygramSpySaveBotChats: false,
+            partygramSpySaveReadDate: false,
+            partygramSpySaveLastOnline: false,
+            partygramSpySaveAttachments: false,
+            partygramSpyAttachmentsFolder: "Saved Attachments",
+            partygramSpyMaxFolderSize: 0,
             alwaysDisplayTyping: false,
             crashOnLongQueries: false,
             chatListPhotos: false,
@@ -130,6 +168,25 @@ public struct ExperimentalUISettings: Codable, Equatable {
     public init(
         keepChatNavigationStack: Bool,
         skipReadHistory: Bool,
+        hideTypingActivity: Bool,
+        partygramGhostMode: Bool,
+        partygramGhostDontReadMessages: Bool,
+        partygramGhostDontReadStories: Bool,
+        partygramGhostDontSendOnline: Bool,
+        partygramGhostDontSendTyping: Bool,
+        partygramGhostAutoOffline: Bool,
+        partygramGhostReadOnActions: Bool,
+        partygramGhostUseDelay: Bool,
+        partygramGhostSilentSendMode: Int32,
+        partygramGhostSuggestForStories: Bool,
+        partygramSpySaveDeletedMessages: Bool,
+        partygramSpySaveEditHistory: Bool,
+        partygramSpySaveBotChats: Bool,
+        partygramSpySaveReadDate: Bool,
+        partygramSpySaveLastOnline: Bool,
+        partygramSpySaveAttachments: Bool,
+        partygramSpyAttachmentsFolder: String,
+        partygramSpyMaxFolderSize: Int32,
         alwaysDisplayTyping: Bool,
         crashOnLongQueries: Bool,
         chatListPhotos: Bool,
@@ -179,6 +236,25 @@ public struct ExperimentalUISettings: Codable, Equatable {
     ) {
         self.keepChatNavigationStack = keepChatNavigationStack
         self.skipReadHistory = skipReadHistory
+        self.hideTypingActivity = hideTypingActivity
+        self.partygramGhostMode = partygramGhostMode
+        self.partygramGhostDontReadMessages = partygramGhostDontReadMessages
+        self.partygramGhostDontReadStories = partygramGhostDontReadStories
+        self.partygramGhostDontSendOnline = partygramGhostDontSendOnline
+        self.partygramGhostDontSendTyping = partygramGhostDontSendTyping
+        self.partygramGhostAutoOffline = partygramGhostAutoOffline
+        self.partygramGhostReadOnActions = partygramGhostReadOnActions
+        self.partygramGhostUseDelay = partygramGhostUseDelay
+        self.partygramGhostSilentSendMode = partygramGhostSilentSendMode
+        self.partygramGhostSuggestForStories = partygramGhostSuggestForStories
+        self.partygramSpySaveDeletedMessages = partygramSpySaveDeletedMessages
+        self.partygramSpySaveEditHistory = partygramSpySaveEditHistory
+        self.partygramSpySaveBotChats = partygramSpySaveBotChats
+        self.partygramSpySaveReadDate = partygramSpySaveReadDate
+        self.partygramSpySaveLastOnline = partygramSpySaveLastOnline
+        self.partygramSpySaveAttachments = partygramSpySaveAttachments
+        self.partygramSpyAttachmentsFolder = partygramSpyAttachmentsFolder
+        self.partygramSpyMaxFolderSize = partygramSpyMaxFolderSize
         self.alwaysDisplayTyping = alwaysDisplayTyping
         self.crashOnLongQueries = crashOnLongQueries
         self.chatListPhotos = chatListPhotos
@@ -232,6 +308,25 @@ public struct ExperimentalUISettings: Codable, Equatable {
 
         self.keepChatNavigationStack = (try container.decodeIfPresent(Int32.self, forKey: "keepChatNavigationStack") ?? 0) != 0
         self.skipReadHistory = (try container.decodeIfPresent(Int32.self, forKey: "skipReadHistory") ?? 0) != 0
+        self.hideTypingActivity = (try container.decodeIfPresent(Int32.self, forKey: "hideTypingActivity") ?? 0) != 0
+        self.partygramGhostMode = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostMode") ?? false
+        self.partygramGhostDontReadMessages = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostDontReadMessages") ?? self.skipReadHistory
+        self.partygramGhostDontReadStories = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostDontReadStories") ?? self.skipReadHistory
+        self.partygramGhostDontSendOnline = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostDontSendOnline") ?? false
+        self.partygramGhostDontSendTyping = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostDontSendTyping") ?? self.hideTypingActivity
+        self.partygramGhostAutoOffline = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostAutoOffline") ?? false
+        self.partygramGhostReadOnActions = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostReadOnActions") ?? false
+        self.partygramGhostUseDelay = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostUseDelay") ?? false
+        self.partygramGhostSilentSendMode = try container.decodeIfPresent(Int32.self, forKey: "partygramGhostSilentSendMode") ?? 0
+        self.partygramGhostSuggestForStories = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostSuggestForStories") ?? true
+        self.partygramSpySaveDeletedMessages = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveDeletedMessages") ?? false
+        self.partygramSpySaveEditHistory = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveEditHistory") ?? false
+        self.partygramSpySaveBotChats = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveBotChats") ?? false
+        self.partygramSpySaveReadDate = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveReadDate") ?? false
+        self.partygramSpySaveLastOnline = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveLastOnline") ?? false
+        self.partygramSpySaveAttachments = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveAttachments") ?? false
+        self.partygramSpyAttachmentsFolder = try container.decodeIfPresent(String.self, forKey: "partygramSpyAttachmentsFolder") ?? "Saved Attachments"
+        self.partygramSpyMaxFolderSize = try container.decodeIfPresent(Int32.self, forKey: "partygramSpyMaxFolderSize") ?? 0
         self.alwaysDisplayTyping = (try container.decodeIfPresent(Int32.self, forKey: "alwaysDisplayTyping") ?? 0) != 0
         self.crashOnLongQueries = (try container.decodeIfPresent(Int32.self, forKey: "crashOnLongQueries") ?? 0) != 0
         self.chatListPhotos = (try container.decodeIfPresent(Int32.self, forKey: "chatListPhotos") ?? 0) != 0
@@ -285,6 +380,25 @@ public struct ExperimentalUISettings: Codable, Equatable {
 
         try container.encode((self.keepChatNavigationStack ? 1 : 0) as Int32, forKey: "keepChatNavigationStack")
         try container.encode((self.skipReadHistory ? 1 : 0) as Int32, forKey: "skipReadHistory")
+        try container.encode((self.hideTypingActivity ? 1 : 0) as Int32, forKey: "hideTypingActivity")
+        try container.encode(self.partygramGhostMode, forKey: "partygramGhostMode")
+        try container.encode(self.partygramGhostDontReadMessages, forKey: "partygramGhostDontReadMessages")
+        try container.encode(self.partygramGhostDontReadStories, forKey: "partygramGhostDontReadStories")
+        try container.encode(self.partygramGhostDontSendOnline, forKey: "partygramGhostDontSendOnline")
+        try container.encode(self.partygramGhostDontSendTyping, forKey: "partygramGhostDontSendTyping")
+        try container.encode(self.partygramGhostAutoOffline, forKey: "partygramGhostAutoOffline")
+        try container.encode(self.partygramGhostReadOnActions, forKey: "partygramGhostReadOnActions")
+        try container.encode(self.partygramGhostUseDelay, forKey: "partygramGhostUseDelay")
+        try container.encode(self.partygramGhostSilentSendMode, forKey: "partygramGhostSilentSendMode")
+        try container.encode(self.partygramGhostSuggestForStories, forKey: "partygramGhostSuggestForStories")
+        try container.encode(self.partygramSpySaveDeletedMessages, forKey: "partygramSpySaveDeletedMessages")
+        try container.encode(self.partygramSpySaveEditHistory, forKey: "partygramSpySaveEditHistory")
+        try container.encode(self.partygramSpySaveBotChats, forKey: "partygramSpySaveBotChats")
+        try container.encode(self.partygramSpySaveReadDate, forKey: "partygramSpySaveReadDate")
+        try container.encode(self.partygramSpySaveLastOnline, forKey: "partygramSpySaveLastOnline")
+        try container.encode(self.partygramSpySaveAttachments, forKey: "partygramSpySaveAttachments")
+        try container.encode(self.partygramSpyAttachmentsFolder, forKey: "partygramSpyAttachmentsFolder")
+        try container.encode(self.partygramSpyMaxFolderSize, forKey: "partygramSpyMaxFolderSize")
         try container.encode((self.alwaysDisplayTyping ? 1 : 0) as Int32, forKey: "alwaysDisplayTyping")
         try container.encode((self.crashOnLongQueries ? 1 : 0) as Int32, forKey: "crashOnLongQueries")
         try container.encode((self.chatListPhotos ? 1 : 0) as Int32, forKey: "chatListPhotos")
