@@ -11,13 +11,13 @@ import AlertUI
 import PresentationDataUtils
 
 private final class PartygramSettingsArguments {
-    let updateSettings: ((ExperimentalUISettings) -> ExperimentalUISettings) -> Void
+    let updateSettings: (@escaping (ExperimentalUISettings) -> ExperimentalUISettings) -> Void
     let openSilentMode: () -> Void
     let openFolderSize: () -> Void
     let showPlaceholder: (String) -> Void
     
     init(
-        updateSettings: @escaping ((ExperimentalUISettings) -> ExperimentalUISettings) -> Void,
+        updateSettings: @escaping (@escaping (ExperimentalUISettings) -> ExperimentalUISettings) -> Void,
         openSilentMode: @escaping () -> Void,
         openFolderSize: @escaping () -> Void,
         showPlaceholder: @escaping (String) -> Void
@@ -324,7 +324,7 @@ private enum PartygramSettingsEntry: ItemListNodeEntry {
                 }
             })
         case let .attachmentsFolder(text, value):
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: text, label: value, labelStyle: .text, sectionId: self.section, style: .blocks, disclosureStyle: .none, action: {
+            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: text, label: value, labelStyle: .text, sectionId: self.section, style: .blocks, action: {
                 arguments.showPlaceholder("Папка вложений будет использована для сохранённых вложений.")
             })
         case let .folderSize(text, value):
@@ -404,7 +404,7 @@ private func partygramSettingsEntries(settings: ExperimentalUISettings) -> [Part
     entries.append(.readOnActions("Читать при действиях", settings.partygramGhostReadOnActions))
     entries.append(.readOnActionsInfo("Автоматически читает сообщение при отправке нового или при реакции на сообщение."))
     entries.append(.useDelay("Использовать отложку", settings.partygramGhostUseDelay))
-    entries.append(.useDelayInfo("Автоматически ставит задержку в ~12 секунд при отправке сообщений. При использовании этой функции вы не будете появляться в сети. Не рекомендуется использовать на слабом интернете."))
+    entries.append(.useDelayInfo("Автоматически ставит задержку в ~12 секунд при отправке сообщений. При использовании это может не сработать при отправке более 5 сообщений в секунду."))
     entries.append(.silentMode("Отправлять без звука", partygramSilentModeTitle(settings.partygramGhostSilentSendMode)))
     entries.append(.silentModeInfo("Отправляет сообщения по умолчанию без звука."))
     entries.append(.suggestForStories("Предлагать призрака для сторис", settings.partygramGhostSuggestForStories))
@@ -415,9 +415,9 @@ private func partygramSettingsEntries(settings: ExperimentalUISettings) -> [Part
     entries.append(.saveEditHistory("Сохранять историю правок", settings.partygramSpySaveEditHistory))
     entries.append(.saveBotChats("Сохранять в чатах с ботами", settings.partygramSpySaveBotChats))
     entries.append(.saveReadDate("Сохранять дату чтения", settings.partygramSpySaveReadDate))
-    entries.append(.saveReadDateInfo("Локально сохраняет данные о чтении сообщений. Будет использоваться, если Telegram не предоставит дату чтения."))
+    entries.append(.saveReadDateInfo("Локально сохраняет данные о чтении сообщений. Будет использоваться, если Telegram не предоставляет эту информацию."))
     entries.append(.saveLastOnline("Сохранять последний онлайн", settings.partygramSpySaveLastOnline))
-    entries.append(.saveLastOnlineInfo("Сохраняет последний известный онлайн для людей со скрытым последним посещением. Вы сможете очень приблизительно увидеть, когда они были последний раз онлайн."))
+    entries.append(.saveLastOnlineInfo("Сохраняет последний известный онлайн для людей со скрытым последним посещением. Вы можете увидеть это в профиле."))
     entries.append(.saveAttachments("Сохранять вложения", settings.partygramSpySaveAttachments))
     entries.append(.attachmentsFolder("Папка вложений", settings.partygramSpyAttachmentsFolder))
     entries.append(.folderSizeHeader("Максимальный размер папки"))
@@ -511,14 +511,14 @@ public func partygramSettingsController(context: AccountContext) -> ViewControll
     )
     |> map { presentationData, sharedData -> (ItemListControllerState, (ItemListNodeState, Any)) in
         let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? .defaultSettings
-        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Настройки Partygram"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back), animateChanges: false)
+        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Настройки Partygram"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: nil)
         let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: partygramSettingsEntries(settings: settings), style: .blocks, animateChanges: false)
         return (controllerState, (listState, arguments))
     }
     
     let controller = ItemListController(context: context, state: signal)
     presentControllerImpl = { [weak controller] c in
-        controller?.present(c, in: .window(.root), with: nil)
+        controller?.present(c, in: .window(.root))
     }
     return controller
 }
