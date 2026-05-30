@@ -88,6 +88,7 @@ func infoItems(
         let ItemAbout = 3003
         let ItemNote = 3004
         let ItemAppFooter = 3005
+        let ItemMutualContact = 3006
         let ItemAffiliate = 4000
         let ItemAffiliateInfo = 4001
         let ItemBusinessHours = 5000
@@ -186,6 +187,11 @@ func infoItems(
                     }
                 )
             )
+        }
+        if !isMyProfile && user.botInfo == nil && !user.flags.contains(.isSupport) && !user.isDeleted {
+            items[currentPeerInfoSection]!.append(PeerInfoScreenLabeledValueItem(id: ItemMutualContact, label: "Взаимный контакт", text: user.flags.contains(.mutualContact) ? "Да" : "Нет", textColor: .primary, action: nil, requestLayout: { animated in
+                interaction.requestLayout(animated)
+            }))
         }
         
         if let cachedData = data.cachedData as? CachedUserData {
