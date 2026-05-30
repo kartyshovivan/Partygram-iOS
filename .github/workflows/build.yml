@@ -84,7 +84,7 @@ jobs:
             exit 1
           fi
 
-          cp "$IPA_PATH" "$OUTPUT_PATH/Telegram.ipa"
+          cp "$IPA_PATH" "$OUTPUT_PATH/Partygram.ipa"
 
           # collect dSYM bundles when present
           DSYM_PATH="build/DSYMs"
@@ -96,10 +96,10 @@ jobs:
           done < <(find bazel-bin/Telegram -maxdepth 1 -type d -name '*.dSYM' -print0)
 
           if find "$DSYM_PATH" -mindepth 1 -maxdepth 1 -type d -name '*.dSYM' | grep -q .; then
-            zip -qr "$OUTPUT_PATH/Telegram.DSYMs.zip" "$DSYM_PATH"
+            zip -qr "$OUTPUT_PATH/Partygram.DSYMs.zip" "$DSYM_PATH"
           else
             echo "warning: no dSYM bundles found; creating an empty archive" >&2
-            zip -qr "$OUTPUT_PATH/Telegram.DSYMs.zip" "$DSYM_PATH"
+            zip -qr "$OUTPUT_PATH/Partygram.DSYMs.zip" "$DSYM_PATH"
           fi
 
       - name: Save Bazel disk cache
@@ -112,7 +112,7 @@ jobs:
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: telegram-build-${{ env.BUILD_NUMBER }}
+          name: partygram-build-${{ env.BUILD_NUMBER }}
           path: /Users/Shared/telegram-ios/build/artifacts
           if-no-files-found: error
           retention-days: 7
@@ -123,10 +123,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: build-${{ env.BUILD_NUMBER }}
-          release_name: Telegram ${{ env.APP_VERSION }} (${{ env.BUILD_NUMBER }})
+          tag_name: partygram-${{ env.APP_VERSION }}-build-${{ env.BUILD_NUMBER }}
+          release_name: Partygram ${{ env.APP_VERSION }} (${{ env.BUILD_NUMBER }})
           body: |
-            An unsigned build of Telegram for iOS ${{ env.APP_VERSION }} (${{ env.BUILD_NUMBER }})
+            An unsigned build of Partygram for iOS ${{ env.APP_VERSION }} (${{ env.BUILD_NUMBER }})
           draft: false
           prerelease: false
 
@@ -137,8 +137,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: /Users/Shared/telegram-ios/build/artifacts/Telegram.ipa
-          asset_name: Telegram.ipa
+          asset_path: /Users/Shared/telegram-ios/build/artifacts/Partygram.ipa
+          asset_name: Partygram.ipa
           asset_content_type: application/zip
 
       - name: Upload Release DSYM
@@ -148,6 +148,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: /Users/Shared/telegram-ios/build/artifacts/Telegram.DSYMs.zip
-          asset_name: Telegram.DSYMs.zip
+          asset_path: /Users/Shared/telegram-ios/build/artifacts/Partygram.DSYMs.zip
+          asset_name: Partygram.DSYMs.zip
           asset_content_type: application/zip
