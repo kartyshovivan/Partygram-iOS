@@ -3896,9 +3896,10 @@ private func recordPeerActivityTimestamp(peerId: PeerId, timestamp: Int32, into 
 
 private func markPartygramMessageDeleted(transaction: Transaction, id: MessageId, timestamp: Int32) {
     transaction.updateMessage(id, update: { message in
+        let storeForwardInfo = message.forwardInfo.flatMap(StoreMessageForwardInfo.init)
         var attributes = message.attributes.filter { !($0 is PartygramDeletedMessageAttribute) }
         attributes.append(PartygramDeletedMessageAttribute(date: timestamp))
-        return .update(message.withUpdatedAttributes(attributes))
+        return .update(StoreMessage(id: message.id, customStableId: nil, globallyUniqueId: message.globallyUniqueId, groupingKey: message.groupingKey, threadId: message.threadId, timestamp: message.timestamp, flags: StoreMessageFlags(message.flags), tags: message.tags, globalTags: message.globalTags, localTags: message.localTags, forwardInfo: storeForwardInfo, authorId: message.author?.id, text: message.text, attributes: attributes, media: message.media))
     })
 }
 
