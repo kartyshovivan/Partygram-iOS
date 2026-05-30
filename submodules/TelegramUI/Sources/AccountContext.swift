@@ -109,6 +109,18 @@ private final class DeviceSpecificContactImportContexts {
     }
 }
 
+private func partygramShouldSuppressOnlinePresence(_ settings: ExperimentalUISettings) -> Bool {
+    return settings.partygramGhostMode && (settings.partygramGhostDontSendOnline || settings.partygramGhostAutoOffline)
+}
+
+private func updatePartygramGhostLastOnlineTimestamp(accountManager: AccountManager<TelegramAccountManagerTypes>, timestamp: Int32) {
+    let _ = updateExperimentalUISettingsInteractively(accountManager: accountManager, { settings in
+        var settings = settings
+        settings.partygramGhostLastOnlineTimestamp = timestamp
+        return settings
+    }).startStandalone()
+}
+
 public final class AccountContextImpl: AccountContext {
     public let sharedContextImpl: SharedAccountContextImpl
     public var sharedContext: SharedAccountContext {
@@ -168,6 +180,7 @@ public final class AccountContextImpl: AccountContext {
     private var managedAppSpecificContactsDisposable: Disposable?
     
     private var experimentalUISettingsDisposable: Disposable?
+    private var partygramSuppressOnlinePresence = false
     
     public let cachedGroupCallContexts: AccountGroupCallContextCache
     
@@ -492,8 +505,13 @@ public final class AccountContextImpl: AccountContext {
             self.isFrozen = isFrozen
         })
         
-        account.setShouldSuppressLocalInputActivities(sharedContext.immediateExperimentalUISettings.hideTypingActivity)
-        account.setShouldSuppressOnlinePresence(sharedContext.immediateExperimentalUISettings.partygramGhostMode && (sharedContext.immediateExperimentalUISettings.partygramGhostDontSendOnline || sharedContext.immediateExperimentalUISettings.partygramGhostAutoOffline))
+        let initialExperimentalUISettings = sharedContext.immediateExperimentalUISettings
+        self.partygramSuppressOnlinePresence = partygramShouldSuppressOnlinePresence(initialExperimentalUISettings)
+        account.setShouldSuppressLocalInputActivities(initialExperimentalUISettings.hideTypingActivity)
+        account.setShouldSuppressOnlinePresence(self.partygramSuppressOnlinePresence)
+        if self.partygramSuppressOnlinePresence && initialExperimentalUISettings.partygramGhostLastOnlineTimestamp == 0 {
+            updatePartygramGhostLastOnlineTimestamp(accountManager: sharedContext.accountManager, timestamp: Int32(Date().timeIntervalSince1970))
+        }
         self.experimentalUISettingsDisposable = (sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.experimentalUISettings])
         |> deliverOnMainQueue).start(next: { [weak self] sharedData in
             guard let self else {
@@ -503,7 +521,12 @@ public final class AccountContextImpl: AccountContext {
                 return
             }
             self.account.setShouldSuppressLocalInputActivities(settings.hideTypingActivity)
-            self.account.setShouldSuppressOnlinePresence(settings.partygramGhostMode && (settings.partygramGhostDontSendOnline || settings.partygramGhostAutoOffline))
+            let shouldSuppressOnlinePresence = partygramShouldSuppressOnlinePresence(settings)
+            self.account.setShouldSuppressOnlinePresence(shouldSuppressOnlinePresence)
+            if shouldSuppressOnlinePresence && (!self.partygramSuppressOnlinePresence || settings.partygramGhostLastOnlineTimestamp == 0) {
+                updatePartygramGhostLastOnlineTimestamp(accountManager: self.sharedContext.accountManager, timestamp: Int32(Date().timeIntervalSince1970))
+            }
+            self.partygramSuppressOnlinePresence = shouldSuppressOnlinePresence
             (self.animationRenderer as? DCTMultiAnimationRendererImpl)?.useYuvA = settings.compressedEmojiCache
         })
     }

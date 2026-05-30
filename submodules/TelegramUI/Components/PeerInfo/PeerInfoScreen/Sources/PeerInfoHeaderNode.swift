@@ -1250,7 +1250,18 @@ final class PeerInfoHeaderNode: ASDisplayNode {
                 let subtitleColor: UIColor
                 subtitleColor = .white
                 
-                subtitleStringText = presentationData.strings.Presence_online
+                let settings = self.context.sharedContext.immediateExperimentalUISettings
+                if settings.partygramGhostMode && (settings.partygramGhostDontSendOnline || settings.partygramGhostAutoOffline), settings.partygramGhostLastOnlineTimestamp > 0 {
+                    subtitleStringText = stringAndActivityForUserPresence(
+                        strings: presentationData.strings,
+                        dateTimeFormat: presentationData.dateTimeFormat,
+                        presence: EnginePeer.Presence(status: .present(until: settings.partygramGhostLastOnlineTimestamp), lastActivity: settings.partygramGhostLastOnlineTimestamp),
+                        relativeTo: Int32(Date().timeIntervalSince1970),
+                        expanded: true
+                    ).0
+                } else {
+                    subtitleStringText = presentationData.strings.Presence_online
+                }
                 subtitleAttributes = MultiScaleTextState.Attributes(font: Font.regular(17.0), color: subtitleColor)
                 smallSubtitleAttributes = MultiScaleTextState.Attributes(font: Font.regular(16.0), color: .white, shadowColor: titleShadowColor)
                 

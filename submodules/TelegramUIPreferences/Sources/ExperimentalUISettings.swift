@@ -38,6 +38,7 @@ public struct ExperimentalUISettings: Codable, Equatable {
     public var partygramGhostUseDelay: Bool
     public var partygramGhostSilentSendMode: Int32
     public var partygramGhostSuggestForStories: Bool
+    public var partygramGhostLastOnlineTimestamp: Int32
     public var partygramSpySaveDeletedMessages: Bool
     public var partygramSpySaveEditHistory: Bool
     public var partygramSpySaveBotChats: Bool
@@ -108,6 +109,7 @@ public struct ExperimentalUISettings: Codable, Equatable {
             partygramGhostUseDelay: false,
             partygramGhostSilentSendMode: 0,
             partygramGhostSuggestForStories: true,
+            partygramGhostLastOnlineTimestamp: 0,
             partygramSpySaveDeletedMessages: false,
             partygramSpySaveEditHistory: false,
             partygramSpySaveBotChats: false,
@@ -179,6 +181,7 @@ public struct ExperimentalUISettings: Codable, Equatable {
         partygramGhostUseDelay: Bool,
         partygramGhostSilentSendMode: Int32,
         partygramGhostSuggestForStories: Bool,
+        partygramGhostLastOnlineTimestamp: Int32,
         partygramSpySaveDeletedMessages: Bool,
         partygramSpySaveEditHistory: Bool,
         partygramSpySaveBotChats: Bool,
@@ -247,6 +250,7 @@ public struct ExperimentalUISettings: Codable, Equatable {
         self.partygramGhostUseDelay = partygramGhostUseDelay
         self.partygramGhostSilentSendMode = partygramGhostSilentSendMode
         self.partygramGhostSuggestForStories = partygramGhostSuggestForStories
+        self.partygramGhostLastOnlineTimestamp = partygramGhostLastOnlineTimestamp
         self.partygramSpySaveDeletedMessages = partygramSpySaveDeletedMessages
         self.partygramSpySaveEditHistory = partygramSpySaveEditHistory
         self.partygramSpySaveBotChats = partygramSpySaveBotChats
@@ -319,6 +323,7 @@ public struct ExperimentalUISettings: Codable, Equatable {
         self.partygramGhostUseDelay = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostUseDelay") ?? false
         self.partygramGhostSilentSendMode = try container.decodeIfPresent(Int32.self, forKey: "partygramGhostSilentSendMode") ?? 0
         self.partygramGhostSuggestForStories = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostSuggestForStories") ?? true
+        self.partygramGhostLastOnlineTimestamp = try container.decodeIfPresent(Int32.self, forKey: "partygramGhostLastOnlineTimestamp") ?? 0
         self.partygramSpySaveDeletedMessages = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveDeletedMessages") ?? false
         self.partygramSpySaveEditHistory = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveEditHistory") ?? false
         self.partygramSpySaveBotChats = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveBotChats") ?? false
@@ -391,6 +396,7 @@ public struct ExperimentalUISettings: Codable, Equatable {
         try container.encode(self.partygramGhostUseDelay, forKey: "partygramGhostUseDelay")
         try container.encode(self.partygramGhostSilentSendMode, forKey: "partygramGhostSilentSendMode")
         try container.encode(self.partygramGhostSuggestForStories, forKey: "partygramGhostSuggestForStories")
+        try container.encode(self.partygramGhostLastOnlineTimestamp, forKey: "partygramGhostLastOnlineTimestamp")
         try container.encode(self.partygramSpySaveDeletedMessages, forKey: "partygramSpySaveDeletedMessages")
         try container.encode(self.partygramSpySaveEditHistory, forKey: "partygramSpySaveEditHistory")
         try container.encode(self.partygramSpySaveBotChats, forKey: "partygramSpySaveBotChats")
