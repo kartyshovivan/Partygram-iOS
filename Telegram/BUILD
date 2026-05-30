@@ -1780,12 +1780,12 @@ ios_application(
 )
 
 xcodeproj(
-    name = "Partygram_xcodeproj",
+    name = "Telegram_xcodeproj",
     bazel_path = telegram_bazel_path,
     project_name = "Partygram",
     tags = ["manual"],
     top_level_targets = [
-        top_level_target(":Partygram", target_environments = ["device", "simulator"]),
+        top_level_target(":Telegram", target_environments = ["device", "simulator"]),
         ":iOSAppUITestSuite",
     ],
     xcode_configurations = {
