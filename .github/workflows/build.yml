@@ -11,7 +11,7 @@ jobs:
     runs-on: macos-26
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
           fetch-depth: '0'
@@ -79,7 +79,7 @@ jobs:
 
           while IFS= read -r -d '' dsym; do
             cp -R "$dsym" "$DSYM_PATH/"
-          done < <(find bazel-bin/Telegram -type d -name '*.dSYM' -print0)
+          done < <(find bazel-bin/Telegram -maxdepth 1 -type d -name '*.dSYM' -print0)
 
           if find "$DSYM_PATH" -mindepth 1 -maxdepth 1 -type d -name '*.dSYM' | grep -q .; then
             zip -qr "$OUTPUT_PATH/Telegram.DSYMs.zip" "$DSYM_PATH"
