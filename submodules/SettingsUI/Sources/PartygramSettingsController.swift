@@ -433,7 +433,7 @@ private func partygramSettingsEntries(settings: ExperimentalUISettings) -> [Part
 public func partygramSettingsController(context: AccountContext) -> ViewController {
     var presentControllerImpl: ((ViewController) -> Void)?
     
-    let updateSettings: (((ExperimentalUISettings) -> ExperimentalUISettings) -> Void) = { f in
+    let updateSettings: ((@escaping (ExperimentalUISettings) -> ExperimentalUISettings) -> Void) = { f in
         let _ = updateExperimentalUISettingsInteractively(accountManager: context.sharedContext.accountManager, { settings in
             return f(settings)
         }).start()
