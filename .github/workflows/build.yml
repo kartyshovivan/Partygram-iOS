@@ -53,6 +53,38 @@ jobs:
 
           cd "$SOURCE_DIR"
 
+          set +x
+
+          export TELEGRAM_API_ID="${{ secrets.TELEGRAM_API_ID }}"
+          export TELEGRAM_API_HASH="${{ secrets.TELEGRAM_API_HASH }}"
+
+          if [[ -z "$TELEGRAM_API_ID" || -z "$TELEGRAM_API_HASH" ]]; then
+            echo "error: TELEGRAM_API_ID or TELEGRAM_API_HASH is not configured in GitHub Actions Secrets" >&2
+            exit 1
+          fi
+
+          python3 <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path("build-system/appstore-configuration.json")
+          data = json.loads(path.read_text(encoding="utf-8"))
+
+          data["api_id"] = os.environ["TELEGRAM_API_ID"]
+          data["api_hash"] = os.environ["TELEGRAM_API_HASH"]
+
+          path.write_text(
+              json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8"
+          )
+          PY
+
+          unset TELEGRAM_API_ID
+          unset TELEGRAM_API_HASH
+
+          set -x
+
           BUILD_NUMBER_OFFSET="$(cat build_number_offset)"
 
           export APP_VERSION=$(cat versions.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["app"]);')
