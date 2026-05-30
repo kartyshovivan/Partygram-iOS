@@ -1400,6 +1400,7 @@ private struct ChatListSearchListPaneNodeState: Equatable {
     var expandGlobalSearch: Bool = false
     var deletedMessageIds = Set<EngineMessage.Id>()
     var deletedGlobalMessageIds = Set<Int32>()
+    var saveDeletedMessages: Bool = false
 }
 
 private func doesPeerMatchFilter(peer: EnginePeer, filter: ChatListNodePeersFilter) -> Bool {
@@ -1659,6 +1660,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
     var currentEntries: [ChatListSearchEntry]?
     
     private var deletedMessagesDisposable: Disposable?
+    private var partygramSettingsDisposable: Disposable?
     
     private var adsHiddenPromise = ValuePromise<Bool>(false)
     private var adsHidden = false {
@@ -1792,7 +1794,8 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
         let presentationData = updatedPresentationData?.initial ?? context.sharedContext.currentPresentationData.with { $0 }
         self.presentationData = presentationData
         self.presentationDataPromise.set(.single(ChatListPresentationData(theme: self.presentationData.theme, fontSize: self.presentationData.listsFontSize, strings: self.presentationData.strings, dateTimeFormat: self.presentationData.dateTimeFormat, nameSortOrder: self.presentationData.nameSortOrder, nameDisplayOrder: self.presentationData.nameDisplayOrder, disableAnimations: true)))
-        
+
+        self.searchStateValue.saveDeletedMessages = context.sharedContext.immediateExperimentalUISettings.partygramSpySaveDeletedMessages
         self.searchStatePromise.set(self.searchStateValue)
         self.selectedMessages = interaction.getSelectedMessageIds()
         self.selectedMessagesPromise.set(.single(self.selectedMessages))
@@ -3300,9 +3303,9 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                                 }
                                 existingMessageIds.insert(message.id)
                                 
-                                if searchState.deletedMessageIds.contains(message.id) {
+                                if !searchState.saveDeletedMessages && searchState.deletedMessageIds.contains(message.id) {
                                     continue
-                                } else if message.id.namespace == Namespaces.Message.Cloud && searchState.deletedGlobalMessageIds.contains(message.id.id) {
+                                } else if !searchState.saveDeletedMessages && message.id.namespace == Namespaces.Message.Cloud && searchState.deletedGlobalMessageIds.contains(message.id.id) {
                                     continue
                                 }
                                 let headerId = listMessageDateHeaderId(timestamp: message.timestamp)
@@ -4705,6 +4708,19 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 }
             }
         }).strict()
+
+        self.partygramSettingsDisposable = (context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.experimentalUISettings])
+        |> deliverOnMainQueue).startStrict(next: { [weak self] sharedData in
+            guard let self else {
+                return
+            }
+            let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? .defaultSettings
+            self.updateState { state in
+                var state = state
+                state.saveDeletedMessages = settings.partygramSpySaveDeletedMessages
+                return state
+            }
+        }).strict()
     }
     
     deinit {
@@ -4716,6 +4732,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
         self.recentDisposable.dispose()
         self.updatedRecentPeersDisposable.dispose()
         self.deletedMessagesDisposable?.dispose()
+        self.partygramSettingsDisposable?.dispose()
         self.searchQueryDisposable?.dispose()
         self.approvedSearchQueryDisposable?.dispose()
         self.searchOptionsDisposable?.dispose()

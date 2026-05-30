@@ -151,6 +151,9 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
         items[.myProfile]!.append(PeerInfoScreenDisclosureItem(id: 0, text: presentationData.strings.Settings_MyProfile, icon: PresentationResourcesSettings.myProfile, action: {
             interaction.openSettings(.profile)
         }))
+        items[.myProfile]!.append(PeerInfoScreenDisclosureItem(id: 1, text: "Настройки PartyGram", icon: PresentationResourcesSettings.partygram, action: {
+            interaction.openSettings(.partygram)
+        }))
         
         if !settings.proxySettings.servers.isEmpty {
             let proxyType: String
@@ -233,9 +236,6 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
     }))
     items[.advanced]!.append(PeerInfoScreenDisclosureItem(id: 1, text: presentationData.strings.Settings_PrivacySettings, icon: PresentationResourcesSettings.security, action: {
         interaction.openSettings(.privacyAndSecurity)
-    }))
-    items[.advanced]!.append(PeerInfoScreenDisclosureItem(id: 7, text: "Настройки Partygram", icon: PresentationResourcesSettings.security, action: {
-        interaction.openSettings(.partygram)
     }))
     items[.advanced]!.append(PeerInfoScreenDisclosureItem(id: 2, text: presentationData.strings.Settings_ChatSettings, icon: PresentationResourcesSettings.dataAndStorage, action: {
         interaction.openSettings(.dataAndStorage)

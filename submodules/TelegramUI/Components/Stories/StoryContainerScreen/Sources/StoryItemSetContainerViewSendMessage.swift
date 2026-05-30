@@ -2931,6 +2931,17 @@ final class StoryItemSetContainerSendMessage: @unchecked(Sendable) {
         if let component = view.component, let peerId = component.slice.item.peerId {
             focusedStoryId = StoryId(peerId: peerId, id: component.slice.item.storyItem.id)
         }
+        let partygramSettings = view.component?.context.sharedContext.immediateExperimentalUISettings
+        let effectiveSilentPosting = silentPosting || partygramSettings?.partygramGhostSilentSendMode == 1
+        let hasExistingScheduleTime = messages.contains { message in
+            message.attributes.contains(where: { $0 is OutgoingScheduleInfoMessageAttribute })
+        }
+        let effectiveScheduleTime: Int32?
+        if scheduleTime == nil && !hasExistingScheduleTime && partygramSettings?.partygramGhostUseDelay == true {
+            effectiveScheduleTime = Int32(Date().timeIntervalSince1970) + 12
+        } else {
+            effectiveScheduleTime = scheduleTime
+        }
 
         return messages.map { message in
             var message = message
@@ -2948,19 +2959,19 @@ final class StoryItemSetContainerSendMessage: @unchecked(Sendable) {
 
             return message.withUpdatedAttributes { attributes in
                 var attributes = attributes
-                if silentPosting || scheduleTime != nil {
+                if effectiveSilentPosting || effectiveScheduleTime != nil {
                     for i in (0 ..< attributes.count).reversed() {
                         if attributes[i] is NotificationInfoMessageAttribute {
                             attributes.remove(at: i)
-                        } else if let _ = scheduleTime, attributes[i] is OutgoingScheduleInfoMessageAttribute {
+                        } else if let _ = effectiveScheduleTime, attributes[i] is OutgoingScheduleInfoMessageAttribute {
                             attributes.remove(at: i)
                         }
                     }
-                    if silentPosting {
+                    if effectiveSilentPosting {
                         attributes.append(NotificationInfoMessageAttribute(flags: .muted))
                     }
-                    if let scheduleTime = scheduleTime {
-                         attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: scheduleTime, repeatPeriod: nil))
+                    if let effectiveScheduleTime {
+                         attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: effectiveScheduleTime, repeatPeriod: nil))
                     }
                 }
                 var messageAttributes: [MessageAttribute] = []

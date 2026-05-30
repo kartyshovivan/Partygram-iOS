@@ -1941,6 +1941,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                                 return
                             }
                             
+                            strongSelf.applyPartygramReadOnActionIfNeeded()
                             let _ = (strongSelf.context.engine.messages.sendStarsReaction(id: message.id, count: 1, privacy: nil)
                             |> deliverOnMainQueue).startStandalone(next: { privacy in
                                 guard let strongSelf = self else {
@@ -2140,6 +2141,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                             })
                         }
                         
+                        strongSelf.applyPartygramReadOnActionIfNeeded()
                         let _ = updateMessageReactionsInteractively(account: strongSelf.context.account, messageIds: [message.id], reactions: mappedUpdatedReactions, isLarge: false, storeAsRecentlyUsed: false).startStandalone()
                     }
                 }
@@ -8539,6 +8541,18 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
     }
         
     func transformEnqueueMessages(_ messages: [EnqueueMessage], silentPosting: Bool, scheduleTime: Int32? = nil, repeatPeriod: Int32? = nil, postpone: Bool = false) -> [EnqueueMessage] {
+        let partygramSettings = self.context.sharedContext.immediateExperimentalUISettings
+        let effectiveSilentPosting = silentPosting || partygramSettings.partygramGhostSilentSendMode == 1
+        let hasExistingScheduleTime = messages.contains { message in
+            message.attributes.contains(where: { $0 is OutgoingScheduleInfoMessageAttribute })
+        }
+        let effectiveScheduleTime: Int32?
+        if scheduleTime == nil && !hasExistingScheduleTime && partygramSettings.partygramGhostUseDelay {
+            effectiveScheduleTime = Int32(Date().timeIntervalSince1970) + 12
+        } else {
+            effectiveScheduleTime = scheduleTime
+        }
+
         var defaultThreadId: Int64?
         var defaultReplyMessageSubject: EngineMessageReplySubject?
         switch self.chatLocation {
@@ -8610,19 +8624,19 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                     attributes.append(PaidStarsMessageAttribute(stars: sendPaidMessageStars, postponeSending: effectivePostpone))
                 }
                 
-                if silentPosting || scheduleTime != nil {
+                if effectiveSilentPosting || effectiveScheduleTime != nil {
                     for i in (0 ..< attributes.count).reversed() {
                         if attributes[i] is NotificationInfoMessageAttribute {
                             attributes.remove(at: i)
-                        } else if let _ = scheduleTime, attributes[i] is OutgoingScheduleInfoMessageAttribute {
+                        } else if let _ = effectiveScheduleTime, attributes[i] is OutgoingScheduleInfoMessageAttribute {
                             attributes.remove(at: i)
                         }
                     }
-                    if silentPosting {
+                    if effectiveSilentPosting {
                         attributes.append(NotificationInfoMessageAttribute(flags: .muted))
                     }
-                    if let scheduleTime {
-                         attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: scheduleTime, repeatPeriod: repeatPeriod))
+                    if let effectiveScheduleTime {
+                         attributes.append(OutgoingScheduleInfoMessageAttribute(scheduleTime: effectiveScheduleTime, repeatPeriod: repeatPeriod))
                     }
                 }
                 
@@ -10081,12 +10095,21 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
     }
     
     func commitPurposefulAction() {
+        self.applyPartygramReadOnActionIfNeeded()
+
         if let purposefulAction = self.purposefulAction {
             self.purposefulAction = nil
             purposefulAction()
         }
     }
-    
+
+    func applyPartygramReadOnActionIfNeeded() {
+        let settings = self.context.sharedContext.immediateExperimentalUISettings
+        if settings.partygramGhostMode && settings.partygramGhostDontReadMessages && settings.partygramGhostReadOnActions {
+            self.chatDisplayNode.historyNode.applyMaxVisibleReadIndexInteractively()
+        }
+    }
+
     public override var keyShortcuts: [KeyShortcut] {
         return self.keyShortcutsInternal
     }

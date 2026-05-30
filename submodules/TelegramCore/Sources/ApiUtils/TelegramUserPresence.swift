@@ -13,7 +13,7 @@ extension TelegramUserPresence {
             self.init(status: .present(until: expires), lastActivity: 0)
         case let .userStatusOffline(userStatusOfflineData):
             let (wasOnline) = (userStatusOfflineData.wasOnline)
-            self.init(status: .present(until: wasOnline), lastActivity: 0)
+            self.init(status: .present(until: wasOnline), lastActivity: wasOnline)
         case let .userStatusRecently(userStatusRecentlyData):
             let (flags) = (userStatusRecentlyData.flags)
             let isHidden = (flags & (1 << 0)) != 0

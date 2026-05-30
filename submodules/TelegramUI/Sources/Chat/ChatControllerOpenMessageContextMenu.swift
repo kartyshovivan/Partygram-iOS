@@ -495,6 +495,7 @@ extension ChatControllerImpl {
                                 return
                             }
                             
+                            strongSelf.applyPartygramReadOnActionIfNeeded()
                             let _ = (strongSelf.context.engine.messages.sendStarsReaction(id: message.id, count: 1, privacy: nil)
                             |> deliverOnMainQueue).startStandalone(next: { privacy in
                                 guard let strongSelf = self else {
@@ -628,6 +629,7 @@ extension ChatControllerImpl {
                             }
                         }
                         
+                        self.applyPartygramReadOnActionIfNeeded()
                         let _ = updateMessageReactionsInteractively(account: self.context.account, messageIds: [message.id], reactions: mappedUpdatedReactions, isLarge: isLarge, storeAsRecentlyUsed: true).startStandalone()
                     }
                 }

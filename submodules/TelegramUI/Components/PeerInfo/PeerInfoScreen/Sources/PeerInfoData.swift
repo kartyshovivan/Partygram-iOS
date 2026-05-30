@@ -1193,7 +1193,9 @@ func peerInfoScreenData(
                     let data = manager.with { manager -> PeerInfoStatusData? in
                         if let presence = manager.currentValue {
                             let timestamp = CFAbsoluteTimeGetCurrent() + NSTimeIntervalSince1970
-                            let (text, isActivity) = stringAndActivityForUserPresence(strings: strings, dateTimeFormat: dateTimeFormat, presence: EnginePeer.Presence(presence), relativeTo: Int32(timestamp), expanded: true)
+                            let settings = context.sharedContext.immediateExperimentalUISettings
+                            let displaySavedLastActivity = settings.partygramSpySaveLastOnline || (settings.partygramGhostMode && (settings.partygramGhostDontSendOnline || settings.partygramGhostAutoOffline))
+                            var effectivePresence = presence
                             var isHiddenStatus = false
                             switch presence.status {
                             case .recently(let isHidden), .lastWeek(let isHidden), .lastMonth(let isHidden):
@@ -1201,6 +1203,11 @@ func peerInfoScreenData(
                             default:
                                 break
                             }
+                            if displaySavedLastActivity && isHiddenStatus && presence.lastActivity > 0 {
+                                effectivePresence = TelegramUserPresence(status: .present(until: presence.lastActivity), lastActivity: presence.lastActivity)
+                                isHiddenStatus = false
+                            }
+                            let (text, isActivity) = stringAndActivityForUserPresence(strings: strings, dateTimeFormat: dateTimeFormat, presence: EnginePeer.Presence(effectivePresence), relativeTo: Int32(timestamp), expanded: true)
                             return PeerInfoStatusData(text: text, isActivity: isActivity, isHiddenStatus: isHiddenStatus, key: nil)
                         } else {
                             return nil

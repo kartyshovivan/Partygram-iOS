@@ -1269,6 +1269,7 @@ public protocol ChatHistoryListNode: ListView {
     var historyState: ValuePromise<ChatHistoryNodeHistoryState> { get }
     
     func scrollToEndOfHistory()
+    func applyMaxVisibleReadIndexInteractively()
     func updateLayout(transition: ContainedViewLayoutTransition, updateSizeAndInsets: ListViewUpdateSizeAndInsets)
     func messageInCurrentHistoryView(_ id: MessageId) -> Message?
     

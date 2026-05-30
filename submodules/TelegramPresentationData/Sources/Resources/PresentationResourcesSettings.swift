@@ -131,6 +131,76 @@ public struct PresentationResourcesSettings {
     public static let powerSaving = renderSettingsIcon(name: "Item List/Icons/PowerSaving", backgroundColors: [colorOrange])
     public static let business = renderSettingsIcon(name: "Item List/Icons/Business", backgroundColors: [UIColor(rgb: 0xA95CE3), UIColor(rgb: 0xF16B80)])
     public static let myProfile = renderSettingsIcon(name: "Item List/Icons/Profile", backgroundColors: [colorRed])
+    public static let partygram = generateImage(CGSize(width: 30.0, height: 30.0), contextGenerator: { size, context in
+        let bounds = CGRect(origin: CGPoint(), size: size)
+        context.clear(bounds)
+
+        let colorsArray: [CGColor] = [
+            UIColor(rgb: 0x8B5CF6).cgColor,
+            UIColor(rgb: 0x00C7BE).cgColor
+        ]
+        var locations: [CGFloat] = [0.0, 1.0]
+        let gradient = CGGradient(colorsSpace: deviceColorSpace, colors: colorsArray as CFArray, locations: &locations)!
+        context.drawLinearGradient(gradient, start: CGPoint(x: 0.0, y: 0.0), end: CGPoint(x: size.width, y: size.height), options: CGGradientDrawingOptions())
+
+        if let gradientImage, let cgImage = gradientImage.cgImage {
+            context.setBlendMode(.plusLighter)
+            context.draw(cgImage, in: CGRect(origin: .zero, size: size))
+        }
+
+        if let backdropImage, let cgImage = backdropImage.cgImage {
+            context.setBlendMode(.overlay)
+            context.draw(cgImage, in: CGRect(origin: CGPoint(x: 0.0, y: 0.0), size: size))
+        }
+
+        context.setBlendMode(.normal)
+
+        let bodyPath = UIBezierPath()
+        bodyPath.move(to: CGPoint(x: 15.0, y: 6.5))
+        bodyPath.addCurve(to: CGPoint(x: 7.5, y: 14.0), controlPoint1: CGPoint(x: 10.8, y: 6.5), controlPoint2: CGPoint(x: 7.5, y: 9.8))
+        bodyPath.addLine(to: CGPoint(x: 7.5, y: 23.0))
+        bodyPath.addQuadCurve(to: CGPoint(x: 10.6, y: 21.0), controlPoint: CGPoint(x: 9.0, y: 24.2))
+        bodyPath.addQuadCurve(to: CGPoint(x: 15.0, y: 23.0), controlPoint: CGPoint(x: 12.8, y: 24.8))
+        bodyPath.addQuadCurve(to: CGPoint(x: 19.4, y: 21.0), controlPoint: CGPoint(x: 17.2, y: 24.8))
+        bodyPath.addQuadCurve(to: CGPoint(x: 22.5, y: 23.0), controlPoint: CGPoint(x: 21.0, y: 24.2))
+        bodyPath.addLine(to: CGPoint(x: 22.5, y: 14.0))
+        bodyPath.addCurve(to: CGPoint(x: 15.0, y: 6.5), controlPoint1: CGPoint(x: 22.5, y: 9.8), controlPoint2: CGPoint(x: 19.2, y: 6.5))
+        bodyPath.close()
+        context.addPath(bodyPath.cgPath)
+        context.setFillColor(UIColor.white.withAlphaComponent(0.95).cgColor)
+        context.fillPath()
+
+        context.setFillColor(UIColor(rgb: 0x5E5CE6).cgColor)
+        context.fillEllipse(in: CGRect(x: 11.0, y: 13.0, width: 2.4, height: 3.0))
+        context.fillEllipse(in: CGRect(x: 16.6, y: 13.0, width: 2.4, height: 3.0))
+
+        let sparklePath = UIBezierPath()
+        sparklePath.move(to: CGPoint(x: 22.0, y: 6.0))
+        sparklePath.addLine(to: CGPoint(x: 23.1, y: 8.0))
+        sparklePath.addLine(to: CGPoint(x: 25.2, y: 9.0))
+        sparklePath.addLine(to: CGPoint(x: 23.1, y: 10.0))
+        sparklePath.addLine(to: CGPoint(x: 22.0, y: 12.0))
+        sparklePath.addLine(to: CGPoint(x: 20.9, y: 10.0))
+        sparklePath.addLine(to: CGPoint(x: 18.8, y: 9.0))
+        sparklePath.addLine(to: CGPoint(x: 20.9, y: 8.0))
+        sparklePath.close()
+        context.addPath(sparklePath.cgPath)
+        context.setFillColor(UIColor.white.withAlphaComponent(0.9).cgColor)
+        context.fillPath()
+
+        let outerPath = UIBezierPath(rect: CGRect(origin: .zero, size: size))
+        let innerPath = UIBezierPath(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: 8.0)
+        outerPath.append(innerPath)
+
+        context.saveGState()
+        outerPath.usesEvenOddFillRule = true
+        context.addPath(outerPath.cgPath)
+        context.clip(using: .evenOdd)
+
+        context.setBlendMode(.clear)
+        context.fill(bounds)
+        context.restoreGState()
+    })
     
     public static let birthday = renderSettingsIcon(name: "Item List/Icons/Cake", backgroundColors: [colorBlue])
     public static let aiTools = renderSettingsIcon(name: "Item List/Icons/AITools", backgroundColors: [colorPurple])

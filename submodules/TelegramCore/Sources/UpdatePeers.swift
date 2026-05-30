@@ -2,6 +2,20 @@ import Foundation
 import Postbox
 import TelegramApi
 
+private func mergeTelegramUserPresence(previous: TelegramUserPresence, updated: TelegramUserPresence) -> TelegramUserPresence {
+    var lastActivity = max(previous.lastActivity, updated.lastActivity)
+    let timestamp = Int32(Date().timeIntervalSince1970)
+
+    if case let .present(until) = previous.status {
+        lastActivity = max(lastActivity, min(until, timestamp))
+    }
+    if case let .present(until) = updated.status {
+        lastActivity = max(lastActivity, min(until, timestamp))
+    }
+
+    return TelegramUserPresence(status: updated.status, lastActivity: lastActivity)
+}
+
 func updatePeerChatInclusionWithMinTimestamp(transaction: Transaction, id: PeerId, minTimestamp: Int32, forceRootGroupIfNotExists: Bool) {
     let currentInclusion = transaction.getPeerChatListInclusion(id)
     var updatedInclusion: PeerChatListInclusion?
@@ -353,8 +367,8 @@ func updatePeerPresences(transaction: Transaction, accountPeerId: PeerId, peerPr
     parsedPresences.removeValue(forKey: accountPeerId)
         
     transaction.updatePeerPresencesInternal(presences: parsedPresences, merge: { previous, updated in
-        if let previous = previous as? TelegramUserPresence, let updated = updated as? TelegramUserPresence, previous.lastActivity != updated.lastActivity {
-            return TelegramUserPresence(status: updated.status, lastActivity: max(previous.lastActivity, updated.lastActivity))
+        if let previous = previous as? TelegramUserPresence, let updated = updated as? TelegramUserPresence {
+            return mergeTelegramUserPresence(previous: previous, updated: updated)
         }
         return updated
     })
@@ -366,8 +380,8 @@ func updatePeerPresencesClean(transaction: Transaction, accountPeerId: PeerId, p
         peerPresences.removeValue(forKey: accountPeerId)
     }
     transaction.updatePeerPresencesInternal(presences: peerPresences, merge: { previous, updated in
-        if let previous = previous as? TelegramUserPresence, let updated = updated as? TelegramUserPresence, previous.lastActivity != updated.lastActivity {
-            return TelegramUserPresence(status: updated.status, lastActivity: max(previous.lastActivity, updated.lastActivity))
+        if let previous = previous as? TelegramUserPresence, let updated = updated as? TelegramUserPresence {
+            return mergeTelegramUserPresence(previous: previous, updated: updated)
         }
         return updated
     })

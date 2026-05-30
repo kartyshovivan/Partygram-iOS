@@ -511,7 +511,7 @@ public func partygramSettingsController(context: AccountContext) -> ViewControll
     )
     |> map { presentationData, sharedData -> (ItemListControllerState, (ItemListNodeState, Any)) in
         let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? .defaultSettings
-        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Настройки Partygram"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: nil)
+        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Настройки PartyGram"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: nil)
         let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: partygramSettingsEntries(settings: settings), style: .blocks, animateChanges: false)
         return (controllerState, (listState, arguments))
     }

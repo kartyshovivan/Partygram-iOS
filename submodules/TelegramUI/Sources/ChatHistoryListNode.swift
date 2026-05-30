@@ -522,6 +522,7 @@ public final class ChatHistoryListNodeImpl: ListViewImpl, ChatHistoryNode, ChatH
     }
     
     private let maxVisibleIncomingMessageIndex = ValuePromise<MessageIndex>(ignoreRepeated: true)
+    private var currentMaxVisibleIncomingMessageIndex: MessageIndex?
     let canReadHistory = Promise<Bool>()
     private var canReadHistoryValue: Bool = false
     private var canReadHistoryDisposable: Disposable?
@@ -3581,7 +3582,35 @@ public final class ChatHistoryListNodeImpl: ListViewImpl, ChatHistoryNode, ChatH
                 self.chatHistoryLocationValue = locationInput
         }
     }
-    
+
+    public func applyMaxVisibleReadIndexInteractively() {
+        guard !self.context.account.isSupportUser else {
+            return
+        }
+        guard let index = self.currentMaxVisibleIncomingMessageIndex else {
+            return
+        }
+        switch self.chatLocation {
+        case .peer, .replyThread:
+            self.context.applyMaxReadIndex(for: self.chatLocation, contextHolder: self.chatLocationContextHolder, messageIndex: index)
+        case .customChatContents:
+            break
+        }
+
+        if !self.suspendReadingReactions && !self.messageIdsScheduledForMarkAsSeen.isEmpty {
+            let messageIds = self.messageIdsScheduledForMarkAsSeen
+            self.messageIdsScheduledForMarkAsSeen.removeAll()
+            self.context.account.viewTracker.updateMarkMentionsSeenForMessageIds(messageIds: messageIds)
+        }
+
+        if !self.suspendReadingReactions && !self.messageIdsWithReactionsScheduledForMarkAsSeen.isEmpty {
+            let messageIds = self.messageIdsWithReactionsScheduledForMarkAsSeen
+            let _ = self.displayUnseenReactionAnimations(messageIds: Array(messageIds))
+            self.messageIdsWithReactionsScheduledForMarkAsSeen.removeAll()
+            self.context.account.viewTracker.updateMarkReactionsAndVotesSeenForMessageIds(messageIds: messageIds)
+        }
+    }
+
     public func scrollToMessage(from fromIndex: MessageIndex, to toIndex: MessageIndex, animated: Bool, highlight: Bool = true, quote: (string: String, offset: Int?)? = nil, subject: EngineMessageReplyInnerSubject? = nil, scrollPosition: ListViewScrollPosition = .center(.bottom), setupReply: Bool = false) {
         self.chatHistoryLocationValue = ChatHistoryLocationInput(content: .Scroll(subject: MessageHistoryScrollToSubject(index: .message(toIndex), quote: quote.flatMap { quote in MessageHistoryScrollToSubject.Quote(string: quote.string, offset: quote.offset) }, subject: subject, setupReply: setupReply), anchorIndex: .message(toIndex), sourceIndex: .message(fromIndex), scrollPosition: scrollPosition, animated: animated, highlight: highlight, setupReply: setupReply), id: self.takeNextHistoryLocationId())
     }
@@ -3738,6 +3767,7 @@ public final class ChatHistoryListNodeImpl: ListViewImpl, ChatHistoryNode, ChatH
     }
     
     private func updateMaxVisibleReadIncomingMessageIndex(_ index: MessageIndex) {
+        self.currentMaxVisibleIncomingMessageIndex = index
         self.maxVisibleIncomingMessageIndex.set(index)
     }
     
