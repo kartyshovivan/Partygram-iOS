@@ -6,6 +6,9 @@ on:
 
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-26
@@ -20,6 +23,16 @@ jobs:
         run: |
           XCODE_VERSION=$(cat versions.json | python3 -c 'import json,sys;obj=json.load(sys.stdin);print(obj["xcode"]);')
           sudo xcode-select -s /Applications/Xcode_$XCODE_VERSION.app/Contents/Developer
+
+      - name: Restore Bazel disk cache
+        id: bazel-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/telegram-bazel-cache
+          key: telegram-bazel-${{ runner.os }}-${{ hashFiles('versions.json', '.bazelrc', 'WORKSPACE', 'MODULE.bazel', 'build-system/Make/**') }}-${{ github.sha }}
+          restore-keys: |
+            telegram-bazel-${{ runner.os }}-${{ hashFiles('versions.json', '.bazelrc', 'WORKSPACE', 'MODULE.bazel', 'build-system/Make/**') }}-
+            telegram-bazel-${{ runner.os }}-
 
       - name: Create canonical source directory
         run: |
@@ -52,6 +65,7 @@ jobs:
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
           python3 -u build-system/Make/Make.py \
             --bazelUserRoot="$BAZEL_USER_ROOT" \
+            --cacheDir="$HOME/telegram-bazel-cache" \
             build \
             --configurationPath="build-system/appstore-configuration.json" \
             --codesigningInformationPath=build-system/fake-codesigning \
@@ -87,6 +101,21 @@ jobs:
             echo "warning: no dSYM bundles found; creating an empty archive" >&2
             zip -qr "$OUTPUT_PATH/Telegram.DSYMs.zip" "$DSYM_PATH"
           fi
+
+      - name: Save Bazel disk cache
+        if: steps.bazel-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/telegram-bazel-cache
+          key: ${{ steps.bazel-cache.outputs.cache-primary-key }}
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: telegram-build-${{ env.BUILD_NUMBER }}
+          path: /Users/Shared/telegram-ios/build/artifacts
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Create Release
         id: create_release
