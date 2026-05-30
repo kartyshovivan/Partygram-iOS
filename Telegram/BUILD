@@ -1725,7 +1725,7 @@ xcode_provisioning_profile(
 )
 
 ios_application(
-    name = "Partygram",
+    name = "Telegram",
     bundle_id = "{telegram_bundle_id}".format(
         telegram_bundle_id = telegram_bundle_id,
     ),
