@@ -1667,6 +1667,9 @@ public class Account {
 
     public func setShouldSuppressOnlinePresence(_ value: Bool) {
         self.shouldSuppressOnlinePresence.set(value)
+        if value {
+            self.accountPresenceManager.forceOfflineUpdate()
+        }
     }
 
     public func addUpdates(serializedData: Data) -> Void {

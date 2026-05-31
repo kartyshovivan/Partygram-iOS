@@ -48,6 +48,8 @@ private enum PartygramSettingsEntry: ItemListNodeEntry {
     case useDelayInfo(String)
     case silentMode(String, String)
     case silentModeInfo(String)
+    case preciseMessageTime(String, Bool)
+    case preciseMessageTimeInfo(String)
     case suggestForStories(String, Bool)
     case suggestForStoriesInfo(String)
     
@@ -72,7 +74,7 @@ private enum PartygramSettingsEntry: ItemListNodeEntry {
         switch self {
         case .ghostHeader, .ghostMode, .ghostOption, .ghostOptionsInfo:
             return PartygramSettingsSection.ghost.rawValue
-        case .readOnActions, .readOnActionsInfo, .useDelay, .useDelayInfo, .silentMode, .silentModeInfo, .suggestForStories, .suggestForStoriesInfo:
+        case .readOnActions, .readOnActionsInfo, .useDelay, .useDelayInfo, .silentMode, .silentModeInfo, .preciseMessageTime, .preciseMessageTimeInfo, .suggestForStories, .suggestForStoriesInfo:
             return PartygramSettingsSection.ghostOptions.rawValue
         case .spyHeader, .saveDeletedMessages, .saveEditHistory, .saveBotChats, .saveReadDate, .saveReadDateInfo, .saveLastOnline, .saveLastOnlineInfo:
             return PartygramSettingsSection.spy.rawValue
@@ -105,10 +107,14 @@ private enum PartygramSettingsEntry: ItemListNodeEntry {
             return 25
         case .silentModeInfo:
             return 26
-        case .suggestForStories:
+        case .preciseMessageTime:
             return 27
-        case .suggestForStoriesInfo:
+        case .preciseMessageTimeInfo:
             return 28
+        case .suggestForStories:
+            return 29
+        case .suggestForStoriesInfo:
+            return 30
         case .spyHeader:
             return 100
         case .saveDeletedMessages:
@@ -166,6 +172,10 @@ private enum PartygramSettingsEntry: ItemListNodeEntry {
             if case .silentMode(text, value) = rhs { return true } else { return false }
         case let .silentModeInfo(text):
             if case .silentModeInfo(text) = rhs { return true } else { return false }
+        case let .preciseMessageTime(text, value):
+            if case .preciseMessageTime(text, value) = rhs { return true } else { return false }
+        case let .preciseMessageTimeInfo(text):
+            if case .preciseMessageTimeInfo(text) = rhs { return true } else { return false }
         case let .suggestForStories(text, value):
             if case .suggestForStories(text, value) = rhs { return true } else { return false }
         case let .suggestForStoriesInfo(text):
@@ -245,7 +255,7 @@ private enum PartygramSettingsEntry: ItemListNodeEntry {
                     return settings
                 }
             })
-        case let .ghostOptionsInfo(text), let .readOnActionsInfo(text), let .useDelayInfo(text), let .silentModeInfo(text), let .suggestForStoriesInfo(text), let .saveReadDateInfo(text), let .saveLastOnlineInfo(text), let .folderSizeInfo(text):
+        case let .ghostOptionsInfo(text), let .readOnActionsInfo(text), let .useDelayInfo(text), let .silentModeInfo(text), let .preciseMessageTimeInfo(text), let .suggestForStoriesInfo(text), let .saveReadDateInfo(text), let .saveLastOnlineInfo(text), let .folderSizeInfo(text):
             return ItemListTextItem(presentationData: presentationData, text: .plain(text), sectionId: self.section)
         case let .readOnActions(text, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
@@ -266,6 +276,14 @@ private enum PartygramSettingsEntry: ItemListNodeEntry {
         case let .silentMode(text, value):
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: text, label: value, labelStyle: .text, sectionId: self.section, style: .blocks, action: {
                 arguments.openSilentMode()
+            })
+        case let .preciseMessageTime(text, value):
+            return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
+                arguments.updateSettings { settings in
+                    var settings = settings
+                    settings.partygramShowSecondsInMessageTime = value
+                    return settings
+                }
             })
         case let .suggestForStories(text, value):
             return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: text, value: value, sectionId: self.section, style: .blocks, updated: { value in
@@ -348,7 +366,7 @@ private enum PartygramSettingsEntry: ItemListNodeEntry {
 }
 
 private func applyPartygramDerivedSettings(_ settings: inout ExperimentalUISettings) {
-    settings.skipReadHistory = settings.partygramGhostMode && (settings.partygramGhostDontReadMessages || settings.partygramGhostDontReadStories)
+    settings.skipReadHistory = settings.partygramGhostMode && settings.partygramGhostDontReadMessages
     settings.hideTypingActivity = settings.partygramGhostMode && settings.partygramGhostDontSendTyping
 }
 
@@ -407,6 +425,8 @@ private func partygramSettingsEntries(settings: ExperimentalUISettings) -> [Part
     entries.append(.useDelayInfo("Автоматически ставит задержку в ~12 секунд при отправке сообщений. При использовании это может не сработать при отправке более 5 сообщений в секунду."))
     entries.append(.silentMode("Отправлять без звука", partygramSilentModeTitle(settings.partygramGhostSilentSendMode)))
     entries.append(.silentModeInfo("Отправляет сообщения по умолчанию без звука."))
+    entries.append(.preciseMessageTime("Показывать секунды во времени", settings.partygramShowSecondsInMessageTime))
+    entries.append(.preciseMessageTimeInfo("Добавляет секунды ко времени сообщений, например 04:03:19."))
     entries.append(.suggestForStories("Предлагать призрака для сторис", settings.partygramGhostSuggestForStories))
     entries.append(.suggestForStoriesInfo("Показывает предупреждение перед открытием сторис, предлагая включить режим призрака."))
     

@@ -71,6 +71,11 @@ private final class AccountPresenceManagerImpl {
             strongSelf.isPerformingUpdate.set(false)
         }))
     }
+
+    func forceOfflineUpdate() {
+        self.wasOnline = false
+        self.updatePresence(false)
+    }
 }
 
 final class AccountPresenceManager {
@@ -93,6 +98,12 @@ final class AccountPresenceManager {
                 }))
             }
             return disposable
+        }
+    }
+
+    func forceOfflineUpdate() {
+        self.impl.with { impl in
+            impl.forceOfflineUpdate()
         }
     }
 }

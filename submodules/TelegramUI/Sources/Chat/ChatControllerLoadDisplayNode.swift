@@ -1957,6 +1957,21 @@ extension ChatControllerImpl {
             }
             
             let messageIds = Set(messages.map { $0.id })
+            if messages.contains(where: { message in message.attributes.contains(where: { $0 is PartygramDeletedMessageAttribute }) }) {
+                let commit = { [weak self] in
+                    guard let self else {
+                        return
+                    }
+                    let _ = self.context.engine.messages.deleteMessagesInteractively(messageIds: Array(messageIds), type: .forLocalPeer).startStandalone()
+                    completion(.dismissWithoutContent)
+                }
+                if let contextController {
+                    contextController.dismiss(completion: commit)
+                } else {
+                    commit()
+                }
+                return
+            }
             self.messageContextDisposable.set((self.context.sharedContext.chatAvailableMessageActions(engine: self.context.engine, accountPeerId: self.context.account.peerId, messageIds: messageIds, keepUpdated: false)
             |> deliverOnMainQueue).startStrict(next: { [weak self] actions in
                 guard let self, !actions.options.isEmpty else {

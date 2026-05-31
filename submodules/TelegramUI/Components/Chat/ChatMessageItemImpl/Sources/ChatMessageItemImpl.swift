@@ -18,6 +18,15 @@ import ChatMessageStickerItemNode
 import ChatMessageAnimatedStickerItemNode
 import ChatMessageBubbleItemNode
 
+private func partygramContentContainsDeletedMessage(_ content: ChatMessageItemContent) -> Bool {
+    for (message, _) in content {
+        if message.attributes.contains(where: { $0 is PartygramDeletedMessageAttribute }) {
+            return true
+        }
+    }
+    return false
+}
+
 private func mediaMergeableStyle(_ media: Media) -> ChatMessageMerge {
     if let story = media as? TelegramMediaStory, story.isMention {
         return .none
@@ -547,6 +556,7 @@ public final class ChatMessageItemImpl: ChatMessageItem, CustomStringConvertible
         let configure = {
             let node = (viewClassName as! ChatMessageItemView.Type).init(rotated: self.controllerInteraction.chatIsRotated)
             node.setupItem(self, synchronousLoad: synchronousLoads)
+            node.alpha = partygramContentContainsDeletedMessage(self.content) ? 0.72 : 1.0
             
             let nodeLayout = node.asyncLayout()
             let (top, bottom, dateAtBottom) = self.mergedWithItems(top: previousItem, bottom: nextItem, isRotated:  self.controllerInteraction.chatIsRotated)
@@ -671,6 +681,7 @@ public final class ChatMessageItemImpl: ChatMessageItem, CustomStringConvertible
                         completion(layout, { info in
                             apply(animation, info, false)
                             if let nodeValue = node() as? ChatMessageItemView {
+                                nodeValue.alpha = partygramContentContainsDeletedMessage(self.content) ? 0.72 : 1.0
                                 nodeValue.safeInsets = UIEdgeInsets(top: 0.0, left: params.leftInset, bottom: 0.0, right: params.rightInset)
                                 nodeValue.updateSelectionState(animated: false)
                                 nodeValue.updateHighlightedState(animated: false)

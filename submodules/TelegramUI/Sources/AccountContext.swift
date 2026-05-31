@@ -113,6 +113,13 @@ private func partygramShouldSuppressOnlinePresence(_ settings: ExperimentalUISet
     return settings.partygramGhostMode && (settings.partygramGhostDontSendOnline || settings.partygramGhostAutoOffline)
 }
 
+private func partygramShouldSuppressTypingActivity(_ settings: ExperimentalUISettings) -> Bool {
+    if settings.partygramGhostMode {
+        return settings.partygramGhostDontSendTyping
+    }
+    return settings.hideTypingActivity
+}
+
 private func updatePartygramGhostLastOnlineTimestamp(accountManager: AccountManager<TelegramAccountManagerTypes>, timestamp: Int32) {
     let _ = updateExperimentalUISettingsInteractively(accountManager: accountManager, { settings in
         var settings = settings
@@ -507,7 +514,7 @@ public final class AccountContextImpl: AccountContext {
         
         let initialExperimentalUISettings = sharedContext.immediateExperimentalUISettings
         self.partygramSuppressOnlinePresence = partygramShouldSuppressOnlinePresence(initialExperimentalUISettings)
-        account.setShouldSuppressLocalInputActivities(initialExperimentalUISettings.hideTypingActivity)
+        account.setShouldSuppressLocalInputActivities(partygramShouldSuppressTypingActivity(initialExperimentalUISettings))
         account.setShouldSuppressOnlinePresence(self.partygramSuppressOnlinePresence)
         if self.partygramSuppressOnlinePresence && initialExperimentalUISettings.partygramGhostLastOnlineTimestamp == 0 {
             updatePartygramGhostLastOnlineTimestamp(accountManager: sharedContext.accountManager, timestamp: Int32(Date().timeIntervalSince1970))
@@ -520,7 +527,7 @@ public final class AccountContextImpl: AccountContext {
             guard let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) else {
                 return
             }
-            self.account.setShouldSuppressLocalInputActivities(settings.hideTypingActivity)
+            self.account.setShouldSuppressLocalInputActivities(partygramShouldSuppressTypingActivity(settings))
             let shouldSuppressOnlinePresence = partygramShouldSuppressOnlinePresence(settings)
             self.account.setShouldSuppressOnlinePresence(shouldSuppressOnlinePresence)
             if shouldSuppressOnlinePresence && (!self.partygramSuppressOnlinePresence || settings.partygramGhostLastOnlineTimestamp == 0) {

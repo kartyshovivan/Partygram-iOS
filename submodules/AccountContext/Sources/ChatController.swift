@@ -69,6 +69,7 @@ public final class ChatMessageItemAssociatedData: Equatable {
     public let accountCountry: String?
     public let isParticipant: Bool
     public let invitedOn: Int32?
+    public let showSecondsInMessageTimestamps: Bool
     
     public init(
         automaticDownloadPeerType: MediaAutoDownloadPeerType,
@@ -108,7 +109,8 @@ public final class ChatMessageItemAssociatedData: Equatable {
         showTextAsPlaceholder: Bool = false,
         accountCountry: String? = nil,
         isParticipant: Bool = false,
-        invitedOn: Int32? = nil
+        invitedOn: Int32? = nil,
+        showSecondsInMessageTimestamps: Bool = false
     ) {
         self.automaticDownloadPeerType = automaticDownloadPeerType
         self.automaticDownloadPeerId = automaticDownloadPeerId
@@ -148,6 +150,7 @@ public final class ChatMessageItemAssociatedData: Equatable {
         self.accountCountry = accountCountry
         self.isParticipant = isParticipant
         self.invitedOn = invitedOn
+        self.showSecondsInMessageTimestamps = showSecondsInMessageTimestamps
     }
     
     public static func == (lhs: ChatMessageItemAssociatedData, rhs: ChatMessageItemAssociatedData) -> Bool {
@@ -251,6 +254,9 @@ public final class ChatMessageItemAssociatedData: Equatable {
             return false
         }
         if lhs.invitedOn != rhs.invitedOn {
+            return false
+        }
+        if lhs.showSecondsInMessageTimestamps != rhs.showSecondsInMessageTimestamps {
             return false
         }
         return true

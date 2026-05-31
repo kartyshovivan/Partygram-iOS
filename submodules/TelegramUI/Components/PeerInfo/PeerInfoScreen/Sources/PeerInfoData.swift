@@ -1197,7 +1197,19 @@ func peerInfoScreenData(
                             let displaySavedLastActivity = settings.partygramSpySaveLastOnline || (settings.partygramGhostMode && (settings.partygramGhostDontSendOnline || settings.partygramGhostAutoOffline))
                             var effectivePresence = presence
                             var isHiddenStatus = false
+                            let peerLastOnlineKey = "\(userPeerId.toInt64())"
                             switch presence.status {
+                            case .present:
+                                if settings.partygramSpySaveLastOnline {
+                                    let savedTimestamp = Int32(timestamp)
+                                    if settings.partygramSavedLastOnlineTimestamps[peerLastOnlineKey] != savedTimestamp {
+                                        let _ = updateExperimentalUISettingsInteractively(accountManager: context.sharedContext.accountManager, { settings in
+                                            var settings = settings
+                                            settings.partygramSavedLastOnlineTimestamps[peerLastOnlineKey] = savedTimestamp
+                                            return settings
+                                        }).startStandalone()
+                                    }
+                                }
                             case .recently(let isHidden), .lastWeek(let isHidden), .lastMonth(let isHidden):
                                 isHiddenStatus = isHidden
                             default:
@@ -1205,6 +1217,9 @@ func peerInfoScreenData(
                             }
                             if displaySavedLastActivity && isHiddenStatus && presence.lastActivity > 0 {
                                 effectivePresence = TelegramUserPresence(status: .present(until: presence.lastActivity), lastActivity: presence.lastActivity)
+                                isHiddenStatus = false
+                            } else if displaySavedLastActivity && isHiddenStatus, let savedTimestamp = settings.partygramSavedLastOnlineTimestamps[peerLastOnlineKey], savedTimestamp > 0 {
+                                effectivePresence = TelegramUserPresence(status: .present(until: savedTimestamp), lastActivity: savedTimestamp)
                                 isHiddenStatus = false
                             }
                             let (text, isActivity) = stringAndActivityForUserPresence(strings: strings, dateTimeFormat: dateTimeFormat, presence: EnginePeer.Presence(effectivePresence), relativeTo: Int32(timestamp), expanded: true)

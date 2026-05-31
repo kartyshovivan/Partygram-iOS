@@ -5,9 +5,17 @@ import ComponentFlow
 import SwiftSignalKit
 import AccountContext
 import TelegramCore
+import TelegramUIPreferences
 import Postbox
 import MediaResources
 import RangeSet
+
+private func partygramShouldSkipReadStories(_ settings: ExperimentalUISettings) -> Bool {
+    if settings.partygramGhostMode {
+        return settings.partygramGhostDontReadStories
+    }
+    return settings.skipReadHistory
+}
 
 private struct StoryKey: Hashable {
     var peerId: EnginePeer.Id
@@ -1130,7 +1138,7 @@ public final class StoryContentContextImpl: StoryContentContext {
     }
     
     public func markAsSeen(id: StoryId) {
-        if !self.context.sharedContext.immediateExperimentalUISettings.skipReadHistory {
+        if !partygramShouldSkipReadStories(self.context.sharedContext.immediateExperimentalUISettings) {
             let _ = self.context.engine.messages.markStoryAsSeen(peerId: id.peerId, id: id.id, asPinned: false).startStandalone()
         }
     }
@@ -1432,7 +1440,7 @@ public final class SingleStoryContentContextImpl: StoryContentContext {
     
     public func markAsSeen(id: StoryId) {
         if self.readGlobally {
-            if !self.context.sharedContext.immediateExperimentalUISettings.skipReadHistory {
+            if !partygramShouldSkipReadStories(self.context.sharedContext.immediateExperimentalUISettings) {
                 let _ = self.context.engine.messages.markStoryAsSeen(peerId: id.peerId, id: id.id, asPinned: false).startStandalone()
             }
         }
@@ -1830,7 +1838,7 @@ public final class PeerStoryListContentContextImpl: StoryContentContext {
     }
     
     public func markAsSeen(id: StoryId) {
-        if !self.context.sharedContext.immediateExperimentalUISettings.skipReadHistory {
+        if !partygramShouldSkipReadStories(self.context.sharedContext.immediateExperimentalUISettings) {
             let _ = self.context.engine.messages.markStoryAsSeen(peerId: id.peerId, id: id.id, asPinned: true).startStandalone()
         }
     }
@@ -3094,7 +3102,7 @@ public final class RepostStoriesContentContextImpl: StoryContentContext {
     }
     
     public func markAsSeen(id: StoryId) {
-        if !self.context.sharedContext.immediateExperimentalUISettings.skipReadHistory {
+        if !partygramShouldSkipReadStories(self.context.sharedContext.immediateExperimentalUISettings) {
             let _ = self.context.engine.messages.markStoryAsSeen(peerId: id.peerId, id: id.id, asPinned: false).startStandalone()
         }
     }

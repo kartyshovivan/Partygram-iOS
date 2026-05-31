@@ -39,11 +39,13 @@ public struct ExperimentalUISettings: Codable, Equatable {
     public var partygramGhostSilentSendMode: Int32
     public var partygramGhostSuggestForStories: Bool
     public var partygramGhostLastOnlineTimestamp: Int32
+    public var partygramShowSecondsInMessageTime: Bool
     public var partygramSpySaveDeletedMessages: Bool
     public var partygramSpySaveEditHistory: Bool
     public var partygramSpySaveBotChats: Bool
     public var partygramSpySaveReadDate: Bool
     public var partygramSpySaveLastOnline: Bool
+    public var partygramSavedLastOnlineTimestamps: [String: Int32]
     public var partygramSpySaveAttachments: Bool
     public var partygramSpyAttachmentsFolder: String
     public var partygramSpyMaxFolderSize: Int32
@@ -110,11 +112,13 @@ public struct ExperimentalUISettings: Codable, Equatable {
             partygramGhostSilentSendMode: 0,
             partygramGhostSuggestForStories: true,
             partygramGhostLastOnlineTimestamp: 0,
+            partygramShowSecondsInMessageTime: false,
             partygramSpySaveDeletedMessages: false,
             partygramSpySaveEditHistory: false,
             partygramSpySaveBotChats: false,
             partygramSpySaveReadDate: false,
             partygramSpySaveLastOnline: false,
+            partygramSavedLastOnlineTimestamps: [:],
             partygramSpySaveAttachments: false,
             partygramSpyAttachmentsFolder: "Saved Attachments",
             partygramSpyMaxFolderSize: 0,
@@ -182,11 +186,13 @@ public struct ExperimentalUISettings: Codable, Equatable {
         partygramGhostSilentSendMode: Int32,
         partygramGhostSuggestForStories: Bool,
         partygramGhostLastOnlineTimestamp: Int32,
+        partygramShowSecondsInMessageTime: Bool,
         partygramSpySaveDeletedMessages: Bool,
         partygramSpySaveEditHistory: Bool,
         partygramSpySaveBotChats: Bool,
         partygramSpySaveReadDate: Bool,
         partygramSpySaveLastOnline: Bool,
+        partygramSavedLastOnlineTimestamps: [String: Int32],
         partygramSpySaveAttachments: Bool,
         partygramSpyAttachmentsFolder: String,
         partygramSpyMaxFolderSize: Int32,
@@ -251,11 +257,13 @@ public struct ExperimentalUISettings: Codable, Equatable {
         self.partygramGhostSilentSendMode = partygramGhostSilentSendMode
         self.partygramGhostSuggestForStories = partygramGhostSuggestForStories
         self.partygramGhostLastOnlineTimestamp = partygramGhostLastOnlineTimestamp
+        self.partygramShowSecondsInMessageTime = partygramShowSecondsInMessageTime
         self.partygramSpySaveDeletedMessages = partygramSpySaveDeletedMessages
         self.partygramSpySaveEditHistory = partygramSpySaveEditHistory
         self.partygramSpySaveBotChats = partygramSpySaveBotChats
         self.partygramSpySaveReadDate = partygramSpySaveReadDate
         self.partygramSpySaveLastOnline = partygramSpySaveLastOnline
+        self.partygramSavedLastOnlineTimestamps = partygramSavedLastOnlineTimestamps
         self.partygramSpySaveAttachments = partygramSpySaveAttachments
         self.partygramSpyAttachmentsFolder = partygramSpyAttachmentsFolder
         self.partygramSpyMaxFolderSize = partygramSpyMaxFolderSize
@@ -324,11 +332,13 @@ public struct ExperimentalUISettings: Codable, Equatable {
         self.partygramGhostSilentSendMode = try container.decodeIfPresent(Int32.self, forKey: "partygramGhostSilentSendMode") ?? 0
         self.partygramGhostSuggestForStories = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostSuggestForStories") ?? true
         self.partygramGhostLastOnlineTimestamp = try container.decodeIfPresent(Int32.self, forKey: "partygramGhostLastOnlineTimestamp") ?? 0
+        self.partygramShowSecondsInMessageTime = try container.decodeIfPresent(Bool.self, forKey: "partygramShowSecondsInMessageTime") ?? false
         self.partygramSpySaveDeletedMessages = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveDeletedMessages") ?? false
         self.partygramSpySaveEditHistory = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveEditHistory") ?? false
         self.partygramSpySaveBotChats = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveBotChats") ?? false
         self.partygramSpySaveReadDate = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveReadDate") ?? false
         self.partygramSpySaveLastOnline = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveLastOnline") ?? false
+        self.partygramSavedLastOnlineTimestamps = try container.decodeIfPresent([String: Int32].self, forKey: "partygramSavedLastOnlineTimestamps") ?? [:]
         self.partygramSpySaveAttachments = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveAttachments") ?? false
         self.partygramSpyAttachmentsFolder = try container.decodeIfPresent(String.self, forKey: "partygramSpyAttachmentsFolder") ?? "Saved Attachments"
         self.partygramSpyMaxFolderSize = try container.decodeIfPresent(Int32.self, forKey: "partygramSpyMaxFolderSize") ?? 0
@@ -397,11 +407,13 @@ public struct ExperimentalUISettings: Codable, Equatable {
         try container.encode(self.partygramGhostSilentSendMode, forKey: "partygramGhostSilentSendMode")
         try container.encode(self.partygramGhostSuggestForStories, forKey: "partygramGhostSuggestForStories")
         try container.encode(self.partygramGhostLastOnlineTimestamp, forKey: "partygramGhostLastOnlineTimestamp")
+        try container.encode(self.partygramShowSecondsInMessageTime, forKey: "partygramShowSecondsInMessageTime")
         try container.encode(self.partygramSpySaveDeletedMessages, forKey: "partygramSpySaveDeletedMessages")
         try container.encode(self.partygramSpySaveEditHistory, forKey: "partygramSpySaveEditHistory")
         try container.encode(self.partygramSpySaveBotChats, forKey: "partygramSpySaveBotChats")
         try container.encode(self.partygramSpySaveReadDate, forKey: "partygramSpySaveReadDate")
         try container.encode(self.partygramSpySaveLastOnline, forKey: "partygramSpySaveLastOnline")
+        try container.encode(self.partygramSavedLastOnlineTimestamps, forKey: "partygramSavedLastOnlineTimestamps")
         try container.encode(self.partygramSpySaveAttachments, forKey: "partygramSpySaveAttachments")
         try container.encode(self.partygramSpyAttachmentsFolder, forKey: "partygramSpyAttachmentsFolder")
         try container.encode(self.partygramSpyMaxFolderSize, forKey: "partygramSpyMaxFolderSize")
