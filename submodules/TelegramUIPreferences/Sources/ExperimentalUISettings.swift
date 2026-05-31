@@ -2,6 +2,30 @@ import Foundation
 import TelegramCore
 import SwiftSignalKit
 
+private func decodePartygramBool(from container: KeyedDecodingContainer<StringCodingKey>, forKey key: String, defaultValue: Bool) -> Bool {
+    if let value = try? container.decodeIfPresent(Bool.self, forKey: StringCodingKey(key)), let value = value {
+        return value
+    }
+    if let value = try? container.decodeIfPresent(Int32.self, forKey: StringCodingKey(key)), let value = value {
+        return value != 0
+    }
+    return defaultValue
+}
+
+private func encodePartygramBool(_ value: Bool, to container: inout KeyedEncodingContainer<StringCodingKey>, forKey key: String) throws {
+    try container.encode((value ? 1 : 0) as Int32, forKey: StringCodingKey(key))
+}
+
+private func decodePartygramSavedLastOnlineTimestamps(from container: KeyedDecodingContainer<StringCodingKey>) -> [String: Int32] {
+    if let data = try? container.decodeIfPresent(Data.self, forKey: "partygramSavedLastOnlineTimestampsJson"), let data = data, let value = try? JSONDecoder().decode([String: Int32].self, from: data) {
+        return value
+    }
+    if let value = try? container.decodeIfPresent([String: Int32].self, forKey: "partygramSavedLastOnlineTimestamps"), let value = value {
+        return value
+    }
+    return [:]
+}
+
 public struct ExperimentalUISettings: Codable, Equatable {
     public struct AccountReactionOverrides: Equatable, Codable {
         public struct Item: Equatable, Codable {
@@ -321,25 +345,25 @@ public struct ExperimentalUISettings: Codable, Equatable {
         self.keepChatNavigationStack = (try container.decodeIfPresent(Int32.self, forKey: "keepChatNavigationStack") ?? 0) != 0
         self.skipReadHistory = (try container.decodeIfPresent(Int32.self, forKey: "skipReadHistory") ?? 0) != 0
         self.hideTypingActivity = (try container.decodeIfPresent(Int32.self, forKey: "hideTypingActivity") ?? 0) != 0
-        self.partygramGhostMode = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostMode") ?? false
-        self.partygramGhostDontReadMessages = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostDontReadMessages") ?? self.skipReadHistory
-        self.partygramGhostDontReadStories = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostDontReadStories") ?? self.skipReadHistory
-        self.partygramGhostDontSendOnline = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostDontSendOnline") ?? false
-        self.partygramGhostDontSendTyping = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostDontSendTyping") ?? self.hideTypingActivity
-        self.partygramGhostAutoOffline = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostAutoOffline") ?? false
-        self.partygramGhostReadOnActions = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostReadOnActions") ?? false
-        self.partygramGhostUseDelay = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostUseDelay") ?? false
+        self.partygramGhostMode = decodePartygramBool(from: container, forKey: "partygramGhostMode", defaultValue: false)
+        self.partygramGhostDontReadMessages = decodePartygramBool(from: container, forKey: "partygramGhostDontReadMessages", defaultValue: self.skipReadHistory)
+        self.partygramGhostDontReadStories = decodePartygramBool(from: container, forKey: "partygramGhostDontReadStories", defaultValue: self.skipReadHistory)
+        self.partygramGhostDontSendOnline = decodePartygramBool(from: container, forKey: "partygramGhostDontSendOnline", defaultValue: false)
+        self.partygramGhostDontSendTyping = decodePartygramBool(from: container, forKey: "partygramGhostDontSendTyping", defaultValue: self.hideTypingActivity)
+        self.partygramGhostAutoOffline = decodePartygramBool(from: container, forKey: "partygramGhostAutoOffline", defaultValue: false)
+        self.partygramGhostReadOnActions = decodePartygramBool(from: container, forKey: "partygramGhostReadOnActions", defaultValue: false)
+        self.partygramGhostUseDelay = decodePartygramBool(from: container, forKey: "partygramGhostUseDelay", defaultValue: false)
         self.partygramGhostSilentSendMode = try container.decodeIfPresent(Int32.self, forKey: "partygramGhostSilentSendMode") ?? 0
-        self.partygramGhostSuggestForStories = try container.decodeIfPresent(Bool.self, forKey: "partygramGhostSuggestForStories") ?? true
+        self.partygramGhostSuggestForStories = decodePartygramBool(from: container, forKey: "partygramGhostSuggestForStories", defaultValue: true)
         self.partygramGhostLastOnlineTimestamp = try container.decodeIfPresent(Int32.self, forKey: "partygramGhostLastOnlineTimestamp") ?? 0
-        self.partygramShowSecondsInMessageTime = try container.decodeIfPresent(Bool.self, forKey: "partygramShowSecondsInMessageTime") ?? false
-        self.partygramSpySaveDeletedMessages = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveDeletedMessages") ?? false
-        self.partygramSpySaveEditHistory = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveEditHistory") ?? false
-        self.partygramSpySaveBotChats = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveBotChats") ?? false
-        self.partygramSpySaveReadDate = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveReadDate") ?? false
-        self.partygramSpySaveLastOnline = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveLastOnline") ?? false
-        self.partygramSavedLastOnlineTimestamps = try container.decodeIfPresent([String: Int32].self, forKey: "partygramSavedLastOnlineTimestamps") ?? [:]
-        self.partygramSpySaveAttachments = try container.decodeIfPresent(Bool.self, forKey: "partygramSpySaveAttachments") ?? false
+        self.partygramShowSecondsInMessageTime = decodePartygramBool(from: container, forKey: "partygramShowSecondsInMessageTime", defaultValue: false)
+        self.partygramSpySaveDeletedMessages = decodePartygramBool(from: container, forKey: "partygramSpySaveDeletedMessages", defaultValue: false)
+        self.partygramSpySaveEditHistory = decodePartygramBool(from: container, forKey: "partygramSpySaveEditHistory", defaultValue: false)
+        self.partygramSpySaveBotChats = decodePartygramBool(from: container, forKey: "partygramSpySaveBotChats", defaultValue: false)
+        self.partygramSpySaveReadDate = decodePartygramBool(from: container, forKey: "partygramSpySaveReadDate", defaultValue: false)
+        self.partygramSpySaveLastOnline = decodePartygramBool(from: container, forKey: "partygramSpySaveLastOnline", defaultValue: false)
+        self.partygramSavedLastOnlineTimestamps = decodePartygramSavedLastOnlineTimestamps(from: container)
+        self.partygramSpySaveAttachments = decodePartygramBool(from: container, forKey: "partygramSpySaveAttachments", defaultValue: false)
         self.partygramSpyAttachmentsFolder = try container.decodeIfPresent(String.self, forKey: "partygramSpyAttachmentsFolder") ?? "Saved Attachments"
         self.partygramSpyMaxFolderSize = try container.decodeIfPresent(Int32.self, forKey: "partygramSpyMaxFolderSize") ?? 0
         self.alwaysDisplayTyping = (try container.decodeIfPresent(Int32.self, forKey: "alwaysDisplayTyping") ?? 0) != 0
@@ -373,7 +397,7 @@ public struct ExperimentalUISettings: Codable, Equatable {
         self.allowWebViewInspection = try container.decodeIfPresent(Bool.self, forKey: "allowWebViewInspection") ?? false
         self.disableReloginTokens = try container.decodeIfPresent(Bool.self, forKey: "disableReloginTokens") ?? false
         self.liveStreamV2 = try container.decodeIfPresent(Bool.self, forKey: "liveStreamV2") ?? false
-        self.dynamicStreaming = try container.decodeIfPresent(Bool.self, forKey: "dynamicStreaming_v2") ?? false
+        self.dynamicStreaming = try container.decodeIfPresent(Bool.self, forKey: "dynamicStreaming_v2") ?? (try container.decodeIfPresent(Bool.self, forKey: "dynamicStreaming") ?? false)
         self.enableLocalTranslation = try container.decodeIfPresent(Bool.self, forKey: "enableLocalTranslation") ?? false
         self.autoBenchmarkReflectors = try container.decodeIfPresent(Bool.self, forKey: "autoBenchmarkReflectors")
         self.playerV2 = try container.decodeIfPresent(Bool.self, forKey: "playerV2") ?? false
@@ -396,25 +420,27 @@ public struct ExperimentalUISettings: Codable, Equatable {
         try container.encode((self.keepChatNavigationStack ? 1 : 0) as Int32, forKey: "keepChatNavigationStack")
         try container.encode((self.skipReadHistory ? 1 : 0) as Int32, forKey: "skipReadHistory")
         try container.encode((self.hideTypingActivity ? 1 : 0) as Int32, forKey: "hideTypingActivity")
-        try container.encode(self.partygramGhostMode, forKey: "partygramGhostMode")
-        try container.encode(self.partygramGhostDontReadMessages, forKey: "partygramGhostDontReadMessages")
-        try container.encode(self.partygramGhostDontReadStories, forKey: "partygramGhostDontReadStories")
-        try container.encode(self.partygramGhostDontSendOnline, forKey: "partygramGhostDontSendOnline")
-        try container.encode(self.partygramGhostDontSendTyping, forKey: "partygramGhostDontSendTyping")
-        try container.encode(self.partygramGhostAutoOffline, forKey: "partygramGhostAutoOffline")
-        try container.encode(self.partygramGhostReadOnActions, forKey: "partygramGhostReadOnActions")
-        try container.encode(self.partygramGhostUseDelay, forKey: "partygramGhostUseDelay")
+        try encodePartygramBool(self.partygramGhostMode, to: &container, forKey: "partygramGhostMode")
+        try encodePartygramBool(self.partygramGhostDontReadMessages, to: &container, forKey: "partygramGhostDontReadMessages")
+        try encodePartygramBool(self.partygramGhostDontReadStories, to: &container, forKey: "partygramGhostDontReadStories")
+        try encodePartygramBool(self.partygramGhostDontSendOnline, to: &container, forKey: "partygramGhostDontSendOnline")
+        try encodePartygramBool(self.partygramGhostDontSendTyping, to: &container, forKey: "partygramGhostDontSendTyping")
+        try encodePartygramBool(self.partygramGhostAutoOffline, to: &container, forKey: "partygramGhostAutoOffline")
+        try encodePartygramBool(self.partygramGhostReadOnActions, to: &container, forKey: "partygramGhostReadOnActions")
+        try encodePartygramBool(self.partygramGhostUseDelay, to: &container, forKey: "partygramGhostUseDelay")
         try container.encode(self.partygramGhostSilentSendMode, forKey: "partygramGhostSilentSendMode")
-        try container.encode(self.partygramGhostSuggestForStories, forKey: "partygramGhostSuggestForStories")
+        try encodePartygramBool(self.partygramGhostSuggestForStories, to: &container, forKey: "partygramGhostSuggestForStories")
         try container.encode(self.partygramGhostLastOnlineTimestamp, forKey: "partygramGhostLastOnlineTimestamp")
-        try container.encode(self.partygramShowSecondsInMessageTime, forKey: "partygramShowSecondsInMessageTime")
-        try container.encode(self.partygramSpySaveDeletedMessages, forKey: "partygramSpySaveDeletedMessages")
-        try container.encode(self.partygramSpySaveEditHistory, forKey: "partygramSpySaveEditHistory")
-        try container.encode(self.partygramSpySaveBotChats, forKey: "partygramSpySaveBotChats")
-        try container.encode(self.partygramSpySaveReadDate, forKey: "partygramSpySaveReadDate")
-        try container.encode(self.partygramSpySaveLastOnline, forKey: "partygramSpySaveLastOnline")
-        try container.encode(self.partygramSavedLastOnlineTimestamps, forKey: "partygramSavedLastOnlineTimestamps")
-        try container.encode(self.partygramSpySaveAttachments, forKey: "partygramSpySaveAttachments")
+        try encodePartygramBool(self.partygramShowSecondsInMessageTime, to: &container, forKey: "partygramShowSecondsInMessageTime")
+        try encodePartygramBool(self.partygramSpySaveDeletedMessages, to: &container, forKey: "partygramSpySaveDeletedMessages")
+        try encodePartygramBool(self.partygramSpySaveEditHistory, to: &container, forKey: "partygramSpySaveEditHistory")
+        try encodePartygramBool(self.partygramSpySaveBotChats, to: &container, forKey: "partygramSpySaveBotChats")
+        try encodePartygramBool(self.partygramSpySaveReadDate, to: &container, forKey: "partygramSpySaveReadDate")
+        try encodePartygramBool(self.partygramSpySaveLastOnline, to: &container, forKey: "partygramSpySaveLastOnline")
+        if let data = try? JSONEncoder().encode(self.partygramSavedLastOnlineTimestamps) {
+            try container.encode(data, forKey: "partygramSavedLastOnlineTimestampsJson")
+        }
+        try encodePartygramBool(self.partygramSpySaveAttachments, to: &container, forKey: "partygramSpySaveAttachments")
         try container.encode(self.partygramSpyAttachmentsFolder, forKey: "partygramSpyAttachmentsFolder")
         try container.encode(self.partygramSpyMaxFolderSize, forKey: "partygramSpyMaxFolderSize")
         try container.encode((self.alwaysDisplayTyping ? 1 : 0) as Int32, forKey: "alwaysDisplayTyping")
