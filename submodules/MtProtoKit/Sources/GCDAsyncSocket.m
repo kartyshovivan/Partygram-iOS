@@ -2416,10 +2416,11 @@ enum GCDAsyncSocketConfig
     unsigned int checkSndBufLen = sizeof(checkSndBuf);
     getsockopt(socketFD, SOL_SOCKET, SO_SNDBUF, &checkSndBuf, &checkSndBufLen);
     
-    if (_useTcpNodelay || true)
+    // Disable Nagle's algorithm for immediate packet sending.
+    if (true)
     {
         int flag = 1;
-        setsockopt(socketFD, SOL_SOCKET, TCP_NODELAY, &flag, sizeof(flag));
+        setsockopt(socketFD, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
     }
 	
 	// Start the connection process in a background queue
@@ -6512,14 +6513,58 @@ static OSStatus SSLWriteFunction(SSLConnectionRef connection, const void *data, 
 	value = [tlsSettings objectForKey:GCDAsyncSocketSSLCipherSuites];
 	if (value)
 	{
-		NSArray *cipherSuites = (NSArray *)value;
-		NSUInteger numberCiphers = [cipherSuites count];
+		// Dynamic cipher suites
+        NSMutableArray *selectedCiphers = [[NSMutableArray alloc] init];
+        
+        // A small set of essential suites are always present
+        NSArray *essentialCiphers = @[
+            // TLS 1.3
+            [NSNumber numberWithShort:TLS_AES_128_GCM_SHA256],
+            [NSNumber numberWithShort:TLS_AES_256_GCM_SHA384],
+            [NSNumber numberWithShort:TLS_CHACHA20_POLY1305_SHA256],
+            // TLS 1.2
+            [NSNumber numberWithShort:TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256],
+            [NSNumber numberWithShort:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256],
+            [NSNumber numberWithShort:TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384],
+            [NSNumber numberWithShort:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384],
+            [NSNumber numberWithShort:TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256],
+            [NSNumber numberWithShort:TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256]
+        ];
+        [selectedCiphers addObjectsFromArray:essentialCiphers];
+        
+        // A random subset is picked from the remaining ones
+        NSArray *optionalCiphers = @[
+            [NSNumber numberWithShort:TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA],
+            [NSNumber numberWithShort:TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA],
+            [NSNumber numberWithShort:TLS_RSA_WITH_AES_256_GCM_SHA384],
+            [NSNumber numberWithShort:TLS_RSA_WITH_AES_128_GCM_SHA256],
+            [NSNumber numberWithShort:TLS_RSA_WITH_AES_256_CBC_SHA],
+            [NSNumber numberWithShort:TLS_RSA_WITH_AES_128_CBC_SHA]
+        ];
+
+        if (optionalCiphers.count > 0) {
+            NSMutableArray *shuffledOptionals = [optionalCiphers mutableCopy];
+            for (NSUInteger i = shuffledOptionals.count - 1; i > 0; i--) {
+                [shuffledOptionals exchangeObjectAtIndex:i withObjectAtIndex:arc4random_uniform((uint32_t)i + 1)];
+            }
+            
+            NSUInteger optionalCount = arc4random_uniform((uint32_t)shuffledOptionals.count + 1);
+            if (optionalCount > 0) {
+                [selectedCiphers addObjectsFromArray:[shuffledOptionals subarrayWithRange:NSMakeRange(0, optionalCount)]];
+            }
+        }
+        
+        // Then everything is shuffled
+        for (NSUInteger i = selectedCiphers.count - 1; i > 0; i--) {
+            [selectedCiphers exchangeObjectAtIndex:i withObjectAtIndex:arc4random_uniform((uint32_t)i + 1)];
+        }
+
+		NSUInteger numberCiphers = [selectedCiphers count];
 		SSLCipherSuite ciphers[numberCiphers];
 		
-		NSUInteger cipherIndex;
-		for (cipherIndex = 0; cipherIndex < numberCiphers; cipherIndex++)
+		for (NSUInteger cipherIndex = 0; cipherIndex < numberCiphers; cipherIndex++)
 		{
-			NSNumber *cipherObject = [cipherSuites objectAtIndex:cipherIndex];
+			NSNumber *cipherObject = [selectedCiphers objectAtIndex:cipherIndex];
 			ciphers[cipherIndex] = [cipherObject shortValue];
 		}
 		
