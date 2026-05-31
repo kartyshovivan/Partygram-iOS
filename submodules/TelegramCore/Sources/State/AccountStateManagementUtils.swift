@@ -4978,7 +4978,6 @@ func replayFinalState(
                                 case let .userStatusOnline(userStatusOnlineData):
                                     let timestamp = userStatusOnlineData.expires
                                     delayNotificatonsUntil = timestamp + 30
-                                    partygramRemoteLastOnlineTimestamp = Int32(Date().timeIntervalSince1970)
                                 case let .userStatusOffline(userStatusOfflineData):
                                     let timestamp = userStatusOfflineData.wasOnline
                                     delayNotificatonsUntil = timestamp

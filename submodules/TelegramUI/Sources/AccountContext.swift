@@ -121,9 +121,12 @@ private func partygramShouldSuppressTypingActivity(_ settings: ExperimentalUISet
 }
 
 private func updatePartygramGhostLastOnlineTimestamp(accountManager: AccountManager<TelegramAccountManagerTypes>, timestamp: Int32) {
+    guard timestamp > 0 else {
+        return
+    }
     let _ = updateExperimentalUISettingsInteractively(accountManager: accountManager, { settings in
         var settings = settings
-        if settings.partygramGhostLastOnlineTimestamp < timestamp {
+        if settings.partygramGhostLastOnlineTimestamp != timestamp {
             settings.partygramGhostLastOnlineTimestamp = timestamp
         }
         return settings
@@ -210,9 +213,7 @@ public final class AccountContextImpl: AccountContext {
 
     private var experimentalUISettingsDisposable: Disposable?
     private var partygramAccountPresenceSettingsDisposable: Disposable?
-    private var partygramLocalOnlinePresenceDisposable: Disposable?
     private var partygramSavedLastOnlineDisposable: Disposable?
-    private var partygramLocalOnlinePresenceTimer: SwiftSignalKit.Timer?
     private var partygramSuppressOnlinePresence = false
 
     public let cachedGroupCallContexts: AccountGroupCallContextCache
@@ -542,9 +543,6 @@ public final class AccountContextImpl: AccountContext {
         self.partygramSuppressOnlinePresence = partygramShouldSuppressOnlinePresence(initialExperimentalUISettings)
         account.setShouldSuppressLocalInputActivities(partygramShouldSuppressTypingActivity(initialExperimentalUISettings))
         account.setShouldSuppressOnlinePresence(self.partygramSuppressOnlinePresence)
-        if self.partygramSuppressOnlinePresence && initialExperimentalUISettings.partygramGhostLastOnlineTimestamp == 0 {
-            updatePartygramGhostLastOnlineTimestamp(accountManager: sharedContext.accountManager, timestamp: Int32(Date().timeIntervalSince1970))
-        }
         self.experimentalUISettingsDisposable = (sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.experimentalUISettings])
         |> deliverOnMainQueue).start(next: { [weak self] sharedData in
             guard let self else {
@@ -554,9 +552,6 @@ public final class AccountContextImpl: AccountContext {
             self.account.setShouldSuppressLocalInputActivities(partygramShouldSuppressTypingActivity(settings))
             let shouldSuppressOnlinePresence = partygramShouldSuppressOnlinePresence(settings)
             self.account.setShouldSuppressOnlinePresence(shouldSuppressOnlinePresence)
-            if shouldSuppressOnlinePresence && (!self.partygramSuppressOnlinePresence || settings.partygramGhostLastOnlineTimestamp == 0) {
-                updatePartygramGhostLastOnlineTimestamp(accountManager: self.sharedContext.accountManager, timestamp: Int32(Date().timeIntervalSince1970))
-            }
             self.partygramSuppressOnlinePresence = shouldSuppressOnlinePresence
             (self.animationRenderer as? DCTMultiAnimationRendererImpl)?.useYuvA = settings.compressedEmojiCache
         })
@@ -568,19 +563,10 @@ public final class AccountContextImpl: AccountContext {
             }
             let settings = view.values[PreferencesKeys.partygramAccountPresenceSettings]?.get(PartygramAccountPresenceSettings.self) ?? .defaultSettings
             let timestamp = settings.remoteLastOnlineTimestamp
-            guard timestamp > self.sharedContext.immediateExperimentalUISettings.partygramGhostLastOnlineTimestamp else {
+            guard timestamp > 0, timestamp != self.sharedContext.immediateExperimentalUISettings.partygramGhostLastOnlineTimestamp else {
                 return
             }
             updatePartygramGhostLastOnlineTimestamp(accountManager: self.sharedContext.accountManager, timestamp: timestamp)
-        })
-
-        self.partygramLocalOnlinePresenceDisposable = (combineLatest(account.shouldKeepOnlinePresence.get(), sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.experimentalUISettings]))
-        |> deliverOnMainQueue).start(next: { [weak self] shouldKeepOnlinePresence, sharedData in
-            guard let self else {
-                return
-            }
-            let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? .defaultSettings
-            self.updatePartygramLocalOnlinePresenceTimer(isActive: shouldKeepOnlinePresence && partygramShouldSuppressOnlinePresence(settings), settings: settings)
         })
 
         self.partygramSavedLastOnlineDisposable = (combineLatest(
@@ -620,34 +606,6 @@ public final class AccountContextImpl: AccountContext {
         })
     }
 
-    private func updatePartygramLocalOnlinePresenceTimer(isActive: Bool, settings: ExperimentalUISettings? = nil) {
-        if isActive {
-            self.updatePartygramLocalOnlinePresenceTimestamp(settings: settings)
-            if self.partygramLocalOnlinePresenceTimer == nil {
-                let timer = SwiftSignalKit.Timer(timeout: 30.0, repeat: true, completion: { [weak self] in
-                    self?.updatePartygramLocalOnlinePresenceTimestamp()
-                }, queue: Queue.mainQueue())
-                self.partygramLocalOnlinePresenceTimer = timer
-                timer.start()
-            }
-        } else {
-            self.partygramLocalOnlinePresenceTimer?.invalidate()
-            self.partygramLocalOnlinePresenceTimer = nil
-        }
-    }
-
-    private func updatePartygramLocalOnlinePresenceTimestamp(settings: ExperimentalUISettings? = nil) {
-        let settings = settings ?? self.sharedContext.immediateExperimentalUISettings
-        guard partygramShouldSuppressOnlinePresence(settings) else {
-            return
-        }
-        let timestamp = Int32(Date().timeIntervalSince1970)
-        guard timestamp > settings.partygramGhostLastOnlineTimestamp else {
-            return
-        }
-        updatePartygramGhostLastOnlineTimestamp(accountManager: self.sharedContext.accountManager, timestamp: timestamp)
-    }
-
     deinit {
         self.limitsConfigurationDisposable?.dispose()
         self.managedAppSpecificContactsDisposable?.dispose()
@@ -656,9 +614,7 @@ public final class AccountContextImpl: AccountContext {
         self.countriesConfigurationDisposable?.dispose()
         self.experimentalUISettingsDisposable?.dispose()
         self.partygramAccountPresenceSettingsDisposable?.dispose()
-        self.partygramLocalOnlinePresenceDisposable?.dispose()
         self.partygramSavedLastOnlineDisposable?.dispose()
-        self.partygramLocalOnlinePresenceTimer?.invalidate()
         self.animatedEmojiStickersDisposable?.dispose()
         self.userLimitsConfigurationDisposable?.dispose()
         self.peerNameColorsConfigurationDisposable?.dispose()

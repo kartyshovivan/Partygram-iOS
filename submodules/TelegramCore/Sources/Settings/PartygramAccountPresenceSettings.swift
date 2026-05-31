@@ -13,7 +13,7 @@ public struct PartygramAccountPresenceSettings: Codable, Equatable {
     
     public func withUpdatedRemoteLastOnlineTimestamp(_ timestamp: Int32) -> PartygramAccountPresenceSettings {
         var result = self
-        if result.remoteLastOnlineTimestamp < timestamp {
+        if timestamp > 0, result.remoteLastOnlineTimestamp != timestamp {
             result.remoteLastOnlineTimestamp = timestamp
         }
         return result

@@ -1249,16 +1249,20 @@ final class PeerInfoHeaderNode: ASDisplayNode {
             } else if self.isMyProfile {
                 let subtitleColor: UIColor
                 subtitleColor = .white
-                
+
                 let settings = self.context.sharedContext.immediateExperimentalUISettings
-                if settings.partygramGhostMode && settings.partygramGhostDontSendOnline, settings.partygramGhostLastOnlineTimestamp > 0 {
-                    subtitleStringText = stringForUserPresenceLastSeenTimestamp(
-                        strings: presentationData.strings,
-                        dateTimeFormat: presentationData.dateTimeFormat,
-                        timestamp: settings.partygramGhostLastOnlineTimestamp,
-                        relativeTo: Int32(Date().timeIntervalSince1970),
-                        showSeconds: settings.partygramShowSecondsInMessageTime
-                    )
+                if settings.partygramGhostMode && settings.partygramGhostDontSendOnline {
+                    if settings.partygramGhostLastOnlineTimestamp > 0 {
+                        subtitleStringText = stringForUserPresenceLastSeenTimestamp(
+                            strings: presentationData.strings,
+                            dateTimeFormat: presentationData.dateTimeFormat,
+                            timestamp: settings.partygramGhostLastOnlineTimestamp,
+                            relativeTo: Int32(Date().timeIntervalSince1970),
+                            showSeconds: settings.partygramShowSecondsInMessageTime
+                        )
+                    } else {
+                        subtitleStringText = presentationData.strings.LastSeen_Lately
+                    }
                 } else {
                     subtitleStringText = presentationData.strings.Presence_online
                 }
