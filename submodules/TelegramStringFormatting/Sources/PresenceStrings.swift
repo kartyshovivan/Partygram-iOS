@@ -227,28 +227,29 @@ public enum RelativeTimestampFormatDay {
     case tomorrow
 }
 
-public func stringForUserPresence(strings: PresentationStrings, day: RelativeTimestampFormatDay, dateTimeFormat: PresentationDateTimeFormat, hours: Int32, minutes: Int32) -> String {
+public func stringForUserPresence(strings: PresentationStrings, day: RelativeTimestampFormatDay, dateTimeFormat: PresentationDateTimeFormat, hours: Int32, minutes: Int32, seconds: Int32? = nil) -> String {
+    let timeString = stringForShortTimestamp(hours: hours, minutes: minutes, seconds: seconds, dateTimeFormat: dateTimeFormat)
     let dayString: String
     switch day {
     case .today, .tomorrow:
-        dayString = strings.LastSeen_TodayAt(stringForShortTimestamp(hours: hours, minutes: minutes, dateTimeFormat: dateTimeFormat)).string
+        dayString = strings.LastSeen_TodayAt(timeString).string
     case .yesterday:
-        dayString = strings.LastSeen_YesterdayAt(stringForShortTimestamp(hours: hours, minutes: minutes, dateTimeFormat: dateTimeFormat)).string
+        dayString = strings.LastSeen_YesterdayAt(timeString).string
     }
     return dayString
 }
 
-private func humanReadableStringForTimestamp(strings: PresentationStrings, day: RelativeTimestampFormatDay, dateTimeFormat: PresentationDateTimeFormat, hours: Int32, minutes: Int32, format: HumanReadableStringFormat? = nil) -> PresentationStrings.FormattedString {
+private func humanReadableStringForTimestamp(strings: PresentationStrings, day: RelativeTimestampFormatDay, dateTimeFormat: PresentationDateTimeFormat, hours: Int32, minutes: Int32, seconds: Int32? = nil, format: HumanReadableStringFormat? = nil) -> PresentationStrings.FormattedString {
     let result: PresentationStrings.FormattedString
     switch day {
     case .today:
-        let string = stringForShortTimestamp(hours: hours, minutes: minutes, dateTimeFormat: dateTimeFormat)
+        let string = stringForShortTimestamp(hours: hours, minutes: minutes, seconds: seconds, dateTimeFormat: dateTimeFormat)
         result = format?.todayFormatString(string) ?? strings.Time_TodayAt(string)
     case .yesterday:
-        let string = stringForShortTimestamp(hours: hours, minutes: minutes, dateTimeFormat: dateTimeFormat)
+        let string = stringForShortTimestamp(hours: hours, minutes: minutes, seconds: seconds, dateTimeFormat: dateTimeFormat)
         result = format?.yesterdayFormatString(string) ?? strings.Time_YesterdayAt(string)
     case .tomorrow:
-        let string = stringForShortTimestamp(hours: hours, minutes: minutes, dateTimeFormat: dateTimeFormat)
+        let string = stringForShortTimestamp(hours: hours, minutes: minutes, seconds: seconds, dateTimeFormat: dateTimeFormat)
         result = format?.tomorrowFormatString(string) ?? strings.Time_TomorrowAt(string)
         
     }
@@ -277,7 +278,7 @@ public struct HumanReadableStringFormat {
     }
 }
 
-public func humanReadableStringForTimestamp(strings: PresentationStrings, dateTimeFormat: PresentationDateTimeFormat, timestamp: Int32, alwaysShowTime: Bool = false, allowYesterday: Bool = true, format: HumanReadableStringFormat? = nil) -> PresentationStrings.FormattedString {
+public func humanReadableStringForTimestamp(strings: PresentationStrings, dateTimeFormat: PresentationDateTimeFormat, timestamp: Int32, alwaysShowTime: Bool = false, allowYesterday: Bool = true, withSeconds: Bool = false, format: HumanReadableStringFormat? = nil) -> PresentationStrings.FormattedString {
     var t: time_t = time_t(timestamp)
     var timeinfo: tm = tm()
     localtime_r(&t, &timeinfo)
@@ -290,7 +291,7 @@ public func humanReadableStringForTimestamp(strings: PresentationStrings, dateTi
     if timeinfo.tm_year != timeinfoNow.tm_year {
         let string: String
         if alwaysShowTime {
-            string = stringForMediumDate(timestamp: timestamp, strings: strings, dateTimeFormat: dateTimeFormat)
+            string = stringForMediumDate(timestamp: timestamp, strings: strings, dateTimeFormat: dateTimeFormat, withSeconds: withSeconds)
         } else {
             string = stringForTimestamp(day: timeinfo.tm_mday, month: timeinfo.tm_mon + 1, year: timeinfo.tm_year, dateTimeFormat: dateTimeFormat)
         }
@@ -307,13 +308,13 @@ public func humanReadableStringForTimestamp(strings: PresentationStrings, dateTi
         } else {
             day = .tomorrow
         }
-        return humanReadableStringForTimestamp(strings: strings, day: day, dateTimeFormat: dateTimeFormat, hours: timeinfo.tm_hour, minutes: timeinfo.tm_min, format: format)
+        return humanReadableStringForTimestamp(strings: strings, day: day, dateTimeFormat: dateTimeFormat, hours: timeinfo.tm_hour, minutes: timeinfo.tm_min, seconds: withSeconds ? timeinfo.tm_sec : nil, format: format)
     } else if dayDifference < 7, let daysFormatString = format?.daysFormatString {
         return daysFormatString(Int(dayDifference))
     } else {
         let string: String
         if alwaysShowTime {
-            string = stringForMediumDate(timestamp: timestamp, strings: strings, dateTimeFormat: dateTimeFormat)
+            string = stringForMediumDate(timestamp: timestamp, strings: strings, dateTimeFormat: dateTimeFormat, withSeconds: withSeconds)
         } else {
             string = stringForTimestamp(day: timeinfo.tm_mday, month: timeinfo.tm_mon + 1, year: timeinfo.tm_year, dateTimeFormat: dateTimeFormat)
         }
@@ -568,7 +569,7 @@ public func stringForStoryActivityTimestamp(strings: PresentationStrings, dateTi
     }
 }
 
-public func stringAndActivityForUserPresence(strings: PresentationStrings, dateTimeFormat: PresentationDateTimeFormat, presence: EnginePeer.Presence, relativeTo timestamp: Int32, expanded: Bool = false) -> (String, Bool) {
+public func stringAndActivityForUserPresence(strings: PresentationStrings, dateTimeFormat: PresentationDateTimeFormat, presence: EnginePeer.Presence, relativeTo timestamp: Int32, expanded: Bool = false, showSeconds: Bool = false) -> (String, Bool) {
     switch presence.status {
     case let .present(statusTimestamp):
         if statusTimestamp >= timestamp {
@@ -606,7 +607,7 @@ public func stringAndActivityForUserPresence(strings: PresentationStrings, dateT
                     } else {
                         day = .yesterday
                     }
-                    return (stringForUserPresence(strings: strings, day: day, dateTimeFormat: dateTimeFormat, hours: timeinfo.tm_hour, minutes: timeinfo.tm_min), false)
+                    return (stringForUserPresence(strings: strings, day: day, dateTimeFormat: dateTimeFormat, hours: timeinfo.tm_hour, minutes: timeinfo.tm_min, seconds: showSeconds ? timeinfo.tm_sec : nil), false)
                 } else {
                     return (strings.LastSeen_AtDate(stringForTimestamp(day: timeinfo.tm_mday, month: timeinfo.tm_mon + 1, year: timeinfo.tm_year, dateTimeFormat: dateTimeFormat)).string, false)
                 }

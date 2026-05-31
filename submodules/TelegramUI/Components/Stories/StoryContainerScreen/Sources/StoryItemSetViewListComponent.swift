@@ -502,7 +502,7 @@ public final class StoryItemSetViewListComponent: Component {
                     }
                     
                     let presentationData = component.context.sharedContext.currentPresentationData.with { $0 }
-                    var dateText = humanReadableStringForTimestamp(strings: component.strings, dateTimeFormat: presentationData.dateTimeFormat, timestamp: item.timestamp, alwaysShowTime: true, allowYesterday: true, format: HumanReadableStringFormat(
+                    var dateText = humanReadableStringForTimestamp(strings: component.strings, dateTimeFormat: presentationData.dateTimeFormat, timestamp: item.timestamp, alwaysShowTime: true, allowYesterday: true, withSeconds: component.context.sharedContext.immediateExperimentalUISettings.partygramShowSecondsInMessageTime, format: HumanReadableStringFormat(
                         dateFormatString: { value in
                             return PresentationStrings.FormattedString(string: component.strings.Chat_MessageSeenTimestamp_Date(value).string, ranges: [])
                         },

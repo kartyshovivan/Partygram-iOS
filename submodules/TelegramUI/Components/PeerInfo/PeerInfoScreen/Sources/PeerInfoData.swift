@@ -1222,7 +1222,7 @@ func peerInfoScreenData(
                                 effectivePresence = TelegramUserPresence(status: .present(until: savedTimestamp), lastActivity: savedTimestamp)
                                 isHiddenStatus = false
                             }
-                            let (text, isActivity) = stringAndActivityForUserPresence(strings: strings, dateTimeFormat: dateTimeFormat, presence: EnginePeer.Presence(effectivePresence), relativeTo: Int32(timestamp), expanded: true)
+                            let (text, isActivity) = stringAndActivityForUserPresence(strings: strings, dateTimeFormat: dateTimeFormat, presence: EnginePeer.Presence(effectivePresence), relativeTo: Int32(timestamp), expanded: true, showSeconds: settings.partygramShowSecondsInMessageTime)
                             return PeerInfoStatusData(text: text, isActivity: isActivity, isHiddenStatus: isHiddenStatus, key: nil)
                         } else {
                             return nil

@@ -3442,7 +3442,7 @@ private final class ChatReadReportContextItemNode: ASDisplayNode, ContextMenuCus
 
             if currentStats.peers.isEmpty {
                 if self.item.isEdit, let attribute = self.item.message.attributes.first(where: { $0 is EditedMessageAttribute }) as? EditedMessageAttribute, !attribute.isHidden, attribute.date != 0 {
-                    let dateText = humanReadableStringForTimestamp(strings: self.presentationData.strings, dateTimeFormat: self.presentationData.dateTimeFormat, timestamp: attribute.date, alwaysShowTime: true, allowYesterday: true, format: HumanReadableStringFormat(
+                    let dateText = humanReadableStringForTimestamp(strings: self.presentationData.strings, dateTimeFormat: self.presentationData.dateTimeFormat, timestamp: attribute.date, alwaysShowTime: true, allowYesterday: true, withSeconds: self.item.context.sharedContext.immediateExperimentalUISettings.partygramShowSecondsInMessageTime, format: HumanReadableStringFormat(
                         dateFormatString: { value in
                             return PresentationStrings.FormattedString(string: self.presentationData.strings.Chat_PrivateMessageEditTimestamp_Date(value).string, ranges: [])
                         },
@@ -3485,7 +3485,7 @@ private final class ChatReadReportContextItemNode: ASDisplayNode, ContextMenuCus
                     }
                 }
             } else if self.item.message.id.peerId.namespace == Namespaces.Peer.CloudUser, let timestamp = currentStats.readTimestamps.first?.value {
-                let dateText = humanReadableStringForTimestamp(strings: self.presentationData.strings, dateTimeFormat: self.presentationData.dateTimeFormat, timestamp: timestamp, alwaysShowTime: true, allowYesterday: true, format: HumanReadableStringFormat(
+                let dateText = humanReadableStringForTimestamp(strings: self.presentationData.strings, dateTimeFormat: self.presentationData.dateTimeFormat, timestamp: timestamp, alwaysShowTime: true, allowYesterday: true, withSeconds: self.item.context.sharedContext.immediateExperimentalUISettings.partygramShowSecondsInMessageTime, format: HumanReadableStringFormat(
                     dateFormatString: { value in
                         return PresentationStrings.FormattedString(string: self.presentationData.strings.Chat_PrivateMessageSeenTimestamp_Date(value).string, ranges: [])
                     },

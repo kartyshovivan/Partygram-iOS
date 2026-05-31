@@ -123,7 +123,9 @@ private func partygramShouldSuppressTypingActivity(_ settings: ExperimentalUISet
 private func updatePartygramGhostLastOnlineTimestamp(accountManager: AccountManager<TelegramAccountManagerTypes>, timestamp: Int32) {
     let _ = updateExperimentalUISettingsInteractively(accountManager: accountManager, { settings in
         var settings = settings
-        settings.partygramGhostLastOnlineTimestamp = max(settings.partygramGhostLastOnlineTimestamp, timestamp)
+        if settings.partygramGhostLastOnlineTimestamp < timestamp {
+            settings.partygramGhostLastOnlineTimestamp = timestamp
+        }
         return settings
     }).startStandalone()
 }
@@ -188,6 +190,8 @@ public final class AccountContextImpl: AccountContext {
     
     private var experimentalUISettingsDisposable: Disposable?
     private var partygramAccountPresenceSettingsDisposable: Disposable?
+    private var partygramLocalOnlinePresenceDisposable: Disposable?
+    private var partygramLocalOnlinePresenceTimer: SwiftSignalKit.Timer?
     private var partygramSuppressOnlinePresence = false
     
     public let cachedGroupCallContexts: AccountGroupCallContextCache
@@ -548,6 +552,43 @@ public final class AccountContextImpl: AccountContext {
             }
             updatePartygramGhostLastOnlineTimestamp(accountManager: self.sharedContext.accountManager, timestamp: timestamp)
         })
+
+        self.partygramLocalOnlinePresenceDisposable = (combineLatest(account.shouldKeepOnlinePresence.get(), sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.experimentalUISettings]))
+        |> deliverOnMainQueue).start(next: { [weak self] shouldKeepOnlinePresence, sharedData in
+            guard let self else {
+                return
+            }
+            let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? .defaultSettings
+            self.updatePartygramLocalOnlinePresenceTimer(isActive: shouldKeepOnlinePresence && partygramShouldSuppressOnlinePresence(settings), settings: settings)
+        })
+    }
+
+    private func updatePartygramLocalOnlinePresenceTimer(isActive: Bool, settings: ExperimentalUISettings? = nil) {
+        if isActive {
+            self.updatePartygramLocalOnlinePresenceTimestamp(settings: settings)
+            if self.partygramLocalOnlinePresenceTimer == nil {
+                let timer = SwiftSignalKit.Timer(timeout: 30.0, repeat: true, completion: { [weak self] in
+                    self?.updatePartygramLocalOnlinePresenceTimestamp()
+                }, queue: Queue.mainQueue())
+                self.partygramLocalOnlinePresenceTimer = timer
+                timer.start()
+            }
+        } else {
+            self.partygramLocalOnlinePresenceTimer?.invalidate()
+            self.partygramLocalOnlinePresenceTimer = nil
+        }
+    }
+
+    private func updatePartygramLocalOnlinePresenceTimestamp(settings: ExperimentalUISettings? = nil) {
+        let settings = settings ?? self.sharedContext.immediateExperimentalUISettings
+        guard partygramShouldSuppressOnlinePresence(settings) else {
+            return
+        }
+        let timestamp = Int32(Date().timeIntervalSince1970)
+        guard timestamp > settings.partygramGhostLastOnlineTimestamp else {
+            return
+        }
+        updatePartygramGhostLastOnlineTimestamp(accountManager: self.sharedContext.accountManager, timestamp: timestamp)
     }
     
     deinit {
@@ -558,6 +599,8 @@ public final class AccountContextImpl: AccountContext {
         self.countriesConfigurationDisposable?.dispose()
         self.experimentalUISettingsDisposable?.dispose()
         self.partygramAccountPresenceSettingsDisposable?.dispose()
+        self.partygramLocalOnlinePresenceDisposable?.dispose()
+        self.partygramLocalOnlinePresenceTimer?.invalidate()
         self.animatedEmojiStickersDisposable?.dispose()
         self.userLimitsConfigurationDisposable?.dispose()
         self.peerNameColorsConfigurationDisposable?.dispose()
