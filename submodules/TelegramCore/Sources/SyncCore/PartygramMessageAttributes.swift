@@ -21,6 +21,22 @@ public final class PartygramDeletedMessageAttribute: Equatable, MessageAttribute
     }
 }
 
+func partygramAttributesWithDeletedMessage(_ attributes: [MessageAttribute], date: Int32) -> [MessageAttribute] {
+    var result = attributes.filter { !($0 is PartygramDeletedMessageAttribute) }
+    result.append(PartygramDeletedMessageAttribute(date: date))
+    return result
+}
+
+func partygramStoreMessageWithDeletedAttribute(_ message: StoreMessage, date: Int32) -> StoreMessage {
+    return message.withUpdatedAttributes(partygramAttributesWithDeletedMessage(message.attributes, date: date))
+}
+
+func markPartygramMessageDeleted(transaction: Transaction, id: MessageId, timestamp: Int32) {
+    transaction.updateMessage(id, update: { message in
+        return .update(StoreMessage(id: message.id, customStableId: nil, globallyUniqueId: message.globallyUniqueId, groupingKey: message.groupingKey, threadId: message.threadId, timestamp: message.timestamp, flags: StoreMessageFlags(message.flags), tags: message.tags, globalTags: message.globalTags, localTags: message.localTags, forwardInfo: message.forwardInfo.flatMap(StoreMessageForwardInfo.init), authorId: message.author?.id, text: message.text, attributes: partygramAttributesWithDeletedMessage(message.attributes, date: timestamp), media: message.media))
+    })
+}
+
 public struct PartygramMessageEditHistoryEntry: Equatable, PostboxCoding {
     public let date: Int32
     public let text: String

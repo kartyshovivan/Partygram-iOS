@@ -3894,15 +3894,6 @@ private func recordPeerActivityTimestamp(peerId: PeerId, timestamp: Int32, into 
     }
 }
 
-private func markPartygramMessageDeleted(transaction: Transaction, id: MessageId, timestamp: Int32) {
-    transaction.updateMessage(id, update: { message in
-        let storeForwardInfo = message.forwardInfo.flatMap(StoreMessageForwardInfo.init)
-        var attributes = message.attributes.filter { !($0 is PartygramDeletedMessageAttribute) }
-        attributes.append(PartygramDeletedMessageAttribute(date: timestamp))
-        return .update(StoreMessage(id: message.id, customStableId: nil, globallyUniqueId: message.globallyUniqueId, groupingKey: message.groupingKey, threadId: message.threadId, timestamp: message.timestamp, flags: StoreMessageFlags(message.flags), tags: message.tags, globalTags: message.globalTags, localTags: message.localTags, forwardInfo: storeForwardInfo, authorId: message.author?.id, text: message.text, attributes: attributes, media: message.media))
-    })
-}
-
 private func updatedPartygramEditHistoryAttributes(previousMessage: Message, updatedAttributes: [MessageAttribute]) -> [MessageAttribute] {
     if previousMessage.text.isEmpty {
         return updatedAttributes
@@ -4149,6 +4140,37 @@ func replayFinalState(
     }
 
     var invalidateGroupStats = Set<PeerGroupId>()
+    let partygramDeletedTimestamp = Int32(Date().timeIntervalSince1970)
+    var partygramDeletedMessageIds = Set<MessageId>()
+    var partygramDeletedGlobalIds = Set<Int32>()
+
+    for operation in finalState.state.operations {
+        switch operation {
+        case let .DeleteMessages(ids):
+            partygramDeletedMessageIds.formUnion(ids)
+        case let .DeleteMessagesWithGlobalIds(ids):
+            partygramDeletedGlobalIds.formUnion(ids)
+        default:
+            break
+        }
+    }
+
+    func partygramIsPendingDeletedMessageId(_ id: MessageId) -> Bool {
+        let isDeletedByMessageId = partygramDeletedMessageIds.contains(id)
+        let isDeletedByGlobalId = id.namespace == Namespaces.Message.Cloud && (id.peerId.namespace == Namespaces.Peer.CloudUser || id.peerId.namespace == Namespaces.Peer.CloudGroup) && partygramDeletedGlobalIds.contains(id.id)
+        return isDeletedByMessageId || isDeletedByGlobalId
+    }
+
+    func partygramApplyPendingDeletedAttributeIfNeeded(_ message: StoreMessage) -> StoreMessage {
+        guard case let .Id(id) = message.id else {
+            return message
+        }
+
+        if !partygramIsPendingDeletedMessageId(id) {
+            return message
+        }
+        return partygramStoreMessageWithDeletedAttribute(message, date: partygramDeletedTimestamp)
+    }
 
     struct PeerIdAndMessageNamespace: Hashable {
         let peerId: PeerId
@@ -4182,7 +4204,9 @@ func replayFinalState(
 
     for operation in optimizedOperations(finalState.state.operations) {
         switch operation {
-            case let .AddMessages(messages, location):
+            case let .AddMessages(rawMessages, location):
+                var messages = rawMessages.map(partygramApplyPendingDeletedAttributeIfNeeded)
+
                 if case .UpperHistoryBlock = location {
                     for message in messages {
                         if case let .Id(id) = message.id {
@@ -4258,8 +4282,6 @@ func replayFinalState(
                         }
                     }
                 }
-
-                var messages = messages
 
                 if case .UpperHistoryBlock = location {
                     for i in 0 ..< messages.count {
@@ -4550,6 +4572,11 @@ func replayFinalState(
 
                     if previousMessage.text != message.text {
                         updatedAttributes = updatedPartygramEditHistoryAttributes(previousMessage: previousMessage, updatedAttributes: updatedAttributes)
+                    }
+                    if let deletedAttribute = previousMessage.attributes.first(where: { $0 is PartygramDeletedMessageAttribute }) as? PartygramDeletedMessageAttribute {
+                        updatedAttributes = partygramAttributesWithDeletedMessage(updatedAttributes, date: deletedAttribute.date)
+                    } else if partygramIsPendingDeletedMessageId(id) {
+                        updatedAttributes = partygramAttributesWithDeletedMessage(updatedAttributes, date: partygramDeletedTimestamp)
                     }
 
                     return .update(message.withUpdatedLocalTags(updatedLocalTags).withUpdatedFlags(updatedFlags).withUpdatedAttributes(updatedAttributes).withUpdatedMedia(updatedMedia))
