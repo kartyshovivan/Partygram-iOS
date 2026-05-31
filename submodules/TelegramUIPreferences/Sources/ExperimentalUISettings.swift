@@ -3,10 +3,10 @@ import TelegramCore
 import SwiftSignalKit
 
 private func decodePartygramBool(from container: KeyedDecodingContainer<StringCodingKey>, forKey key: String, defaultValue: Bool) -> Bool {
-    if let value = try? container.decodeIfPresent(Bool.self, forKey: StringCodingKey(key)), let value = value {
+    if let value = try? container.decodeIfPresent(Bool.self, forKey: StringCodingKey(key)) {
         return value
     }
-    if let value = try? container.decodeIfPresent(Int32.self, forKey: StringCodingKey(key)), let value = value {
+    if let value = try? container.decodeIfPresent(Int32.self, forKey: StringCodingKey(key)) {
         return value != 0
     }
     return defaultValue
@@ -17,10 +17,10 @@ private func encodePartygramBool(_ value: Bool, to container: inout KeyedEncodin
 }
 
 private func decodePartygramSavedLastOnlineTimestamps(from container: KeyedDecodingContainer<StringCodingKey>) -> [String: Int32] {
-    if let data = try? container.decodeIfPresent(Data.self, forKey: "partygramSavedLastOnlineTimestampsJson"), let data = data, let value = try? JSONDecoder().decode([String: Int32].self, from: data) {
+    if let data = try? container.decodeIfPresent(Data.self, forKey: "partygramSavedLastOnlineTimestampsJson"), let value = try? JSONDecoder().decode([String: Int32].self, from: data) {
         return value
     }
-    if let value = try? container.decodeIfPresent([String: Int32].self, forKey: "partygramSavedLastOnlineTimestamps"), let value = value {
+    if let value = try? container.decodeIfPresent([String: Int32].self, forKey: "partygramSavedLastOnlineTimestamps") {
         return value
     }
     return [:]
