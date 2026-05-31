@@ -123,7 +123,7 @@ private func partygramShouldSuppressTypingActivity(_ settings: ExperimentalUISet
 private func updatePartygramGhostLastOnlineTimestamp(accountManager: AccountManager<TelegramAccountManagerTypes>, timestamp: Int32) {
     let _ = updateExperimentalUISettingsInteractively(accountManager: accountManager, { settings in
         var settings = settings
-        settings.partygramGhostLastOnlineTimestamp = timestamp
+        settings.partygramGhostLastOnlineTimestamp = max(settings.partygramGhostLastOnlineTimestamp, timestamp)
         return settings
     }).startStandalone()
 }
@@ -525,9 +525,7 @@ public final class AccountContextImpl: AccountContext {
             guard let self else {
                 return
             }
-            guard let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) else {
-                return
-            }
+            let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? .defaultSettings
             self.account.setShouldSuppressLocalInputActivities(partygramShouldSuppressTypingActivity(settings))
             let shouldSuppressOnlinePresence = partygramShouldSuppressOnlinePresence(settings)
             self.account.setShouldSuppressOnlinePresence(shouldSuppressOnlinePresence)
