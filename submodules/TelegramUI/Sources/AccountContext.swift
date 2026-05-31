@@ -110,7 +110,7 @@ private final class DeviceSpecificContactImportContexts {
 }
 
 private func partygramShouldSuppressOnlinePresence(_ settings: ExperimentalUISettings) -> Bool {
-    return settings.partygramGhostMode && (settings.partygramGhostDontSendOnline || settings.partygramGhostAutoOffline)
+    return settings.partygramGhostMode && settings.partygramGhostDontSendOnline
 }
 
 private func partygramShouldSuppressTypingActivity(_ settings: ExperimentalUISettings) -> Bool {

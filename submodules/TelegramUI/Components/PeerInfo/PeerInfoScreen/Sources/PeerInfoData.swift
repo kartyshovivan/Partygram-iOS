@@ -1194,7 +1194,7 @@ func peerInfoScreenData(
                         if let presence = manager.currentValue {
                             let timestamp = CFAbsoluteTimeGetCurrent() + NSTimeIntervalSince1970
                             let settings = context.sharedContext.immediateExperimentalUISettings
-                            let displaySavedLastActivity = settings.partygramSpySaveLastOnline || (settings.partygramGhostMode && (settings.partygramGhostDontSendOnline || settings.partygramGhostAutoOffline))
+                            let displaySavedLastActivity = settings.partygramSpySaveLastOnline || (settings.partygramGhostMode && settings.partygramGhostDontSendOnline)
                             var effectivePresence = presence
                             var isHiddenStatus = false
                             let peerLastOnlineKey = "\(userPeerId.toInt64())"

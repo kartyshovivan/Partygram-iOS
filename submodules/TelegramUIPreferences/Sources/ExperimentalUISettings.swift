@@ -57,6 +57,7 @@ public struct ExperimentalUISettings: Codable, Equatable {
     public var partygramGhostDontReadStories: Bool
     public var partygramGhostDontSendOnline: Bool
     public var partygramGhostDontSendTyping: Bool
+    /// Kept only to migrate settings saved before it was merged into partygramGhostDontSendOnline.
     public var partygramGhostAutoOffline: Bool
     public var partygramGhostReadOnActions: Bool
     public var partygramGhostUseDelay: Bool
@@ -273,9 +274,9 @@ public struct ExperimentalUISettings: Codable, Equatable {
         self.partygramGhostMode = partygramGhostMode
         self.partygramGhostDontReadMessages = partygramGhostDontReadMessages
         self.partygramGhostDontReadStories = partygramGhostDontReadStories
-        self.partygramGhostDontSendOnline = partygramGhostDontSendOnline
+        self.partygramGhostDontSendOnline = partygramGhostDontSendOnline || partygramGhostAutoOffline
         self.partygramGhostDontSendTyping = partygramGhostDontSendTyping
-        self.partygramGhostAutoOffline = partygramGhostAutoOffline
+        self.partygramGhostAutoOffline = false
         self.partygramGhostReadOnActions = partygramGhostReadOnActions
         self.partygramGhostUseDelay = partygramGhostUseDelay
         self.partygramGhostSilentSendMode = partygramGhostSilentSendMode
@@ -348,9 +349,10 @@ public struct ExperimentalUISettings: Codable, Equatable {
         self.partygramGhostMode = decodePartygramBool(from: container, forKey: "partygramGhostMode", defaultValue: false)
         self.partygramGhostDontReadMessages = decodePartygramBool(from: container, forKey: "partygramGhostDontReadMessages", defaultValue: self.skipReadHistory)
         self.partygramGhostDontReadStories = decodePartygramBool(from: container, forKey: "partygramGhostDontReadStories", defaultValue: self.skipReadHistory)
-        self.partygramGhostDontSendOnline = decodePartygramBool(from: container, forKey: "partygramGhostDontSendOnline", defaultValue: false)
+        let partygramGhostAutoOffline = decodePartygramBool(from: container, forKey: "partygramGhostAutoOffline", defaultValue: false)
+        self.partygramGhostDontSendOnline = decodePartygramBool(from: container, forKey: "partygramGhostDontSendOnline", defaultValue: false) || partygramGhostAutoOffline
         self.partygramGhostDontSendTyping = decodePartygramBool(from: container, forKey: "partygramGhostDontSendTyping", defaultValue: self.hideTypingActivity)
-        self.partygramGhostAutoOffline = decodePartygramBool(from: container, forKey: "partygramGhostAutoOffline", defaultValue: false)
+        self.partygramGhostAutoOffline = false
         self.partygramGhostReadOnActions = decodePartygramBool(from: container, forKey: "partygramGhostReadOnActions", defaultValue: false)
         self.partygramGhostUseDelay = decodePartygramBool(from: container, forKey: "partygramGhostUseDelay", defaultValue: false)
         self.partygramGhostSilentSendMode = try container.decodeIfPresent(Int32.self, forKey: "partygramGhostSilentSendMode") ?? 0
@@ -425,7 +427,7 @@ public struct ExperimentalUISettings: Codable, Equatable {
         try encodePartygramBool(self.partygramGhostDontReadStories, to: &container, forKey: "partygramGhostDontReadStories")
         try encodePartygramBool(self.partygramGhostDontSendOnline, to: &container, forKey: "partygramGhostDontSendOnline")
         try encodePartygramBool(self.partygramGhostDontSendTyping, to: &container, forKey: "partygramGhostDontSendTyping")
-        try encodePartygramBool(self.partygramGhostAutoOffline, to: &container, forKey: "partygramGhostAutoOffline")
+        try encodePartygramBool(false, to: &container, forKey: "partygramGhostAutoOffline")
         try encodePartygramBool(self.partygramGhostReadOnActions, to: &container, forKey: "partygramGhostReadOnActions")
         try encodePartygramBool(self.partygramGhostUseDelay, to: &container, forKey: "partygramGhostUseDelay")
         try container.encode(self.partygramGhostSilentSendMode, forKey: "partygramGhostSilentSendMode")

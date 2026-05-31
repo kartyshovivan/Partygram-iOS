@@ -1251,7 +1251,7 @@ final class PeerInfoHeaderNode: ASDisplayNode {
                 subtitleColor = .white
                 
                 let settings = self.context.sharedContext.immediateExperimentalUISettings
-                if settings.partygramGhostMode && (settings.partygramGhostDontSendOnline || settings.partygramGhostAutoOffline), settings.partygramGhostLastOnlineTimestamp > 0 {
+                if settings.partygramGhostMode && settings.partygramGhostDontSendOnline, settings.partygramGhostLastOnlineTimestamp > 0 {
                     subtitleStringText = stringAndActivityForUserPresence(
                         strings: presentationData.strings,
                         dateTimeFormat: presentationData.dateTimeFormat,

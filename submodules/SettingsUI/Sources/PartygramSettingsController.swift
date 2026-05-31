@@ -243,11 +243,10 @@ private enum PartygramSettingsEntry: ItemListNodeEntry {
                     case 1:
                         settings.partygramGhostDontReadStories = !settings.partygramGhostDontReadStories
                     case 2:
-                        settings.partygramGhostDontSendOnline = !settings.partygramGhostDontSendOnline
+                        settings.partygramGhostDontSendOnline = !partygramGhostDontSendOnlineEnabled(settings)
+                        settings.partygramGhostAutoOffline = false
                     case 3:
                         settings.partygramGhostDontSendTyping = !settings.partygramGhostDontSendTyping
-                    case 4:
-                        settings.partygramGhostAutoOffline = !settings.partygramGhostAutoOffline
                     default:
                         break
                     }
@@ -366,17 +365,24 @@ private enum PartygramSettingsEntry: ItemListNodeEntry {
 }
 
 private func applyPartygramDerivedSettings(_ settings: inout ExperimentalUISettings) {
+    if settings.partygramGhostAutoOffline {
+        settings.partygramGhostDontSendOnline = true
+        settings.partygramGhostAutoOffline = false
+    }
     settings.skipReadHistory = settings.partygramGhostMode && settings.partygramGhostDontReadMessages
     settings.hideTypingActivity = settings.partygramGhostMode && settings.partygramGhostDontSendTyping
+}
+
+private func partygramGhostDontSendOnlineEnabled(_ settings: ExperimentalUISettings) -> Bool {
+    return settings.partygramGhostDontSendOnline || settings.partygramGhostAutoOffline
 }
 
 private func partygramGhostEnabledCount(_ settings: ExperimentalUISettings) -> Int {
     var count = 0
     if settings.partygramGhostDontReadMessages { count += 1 }
     if settings.partygramGhostDontReadStories { count += 1 }
-    if settings.partygramGhostDontSendOnline { count += 1 }
+    if partygramGhostDontSendOnlineEnabled(settings) { count += 1 }
     if settings.partygramGhostDontSendTyping { count += 1 }
-    if settings.partygramGhostAutoOffline { count += 1 }
     return count
 }
 
@@ -410,13 +416,12 @@ private func partygramSettingsEntries(settings: ExperimentalUISettings) -> [Part
     var entries: [PartygramSettingsEntry] = []
     
     entries.append(.ghostHeader("Режим призрака"))
-    entries.append(.ghostMode("Режим призрака", settings.partygramGhostMode, "\(partygramGhostEnabledCount(settings))/5"))
+    entries.append(.ghostMode("Режим призрака", settings.partygramGhostMode, "\(partygramGhostEnabledCount(settings))/4"))
     if settings.partygramGhostMode {
         entries.append(.ghostOption(0, "Не читать сообщения", settings.partygramGhostDontReadMessages))
         entries.append(.ghostOption(1, "Не читать истории", settings.partygramGhostDontReadStories))
-        entries.append(.ghostOption(2, "Не отправлять «онлайн»", settings.partygramGhostDontSendOnline))
+        entries.append(.ghostOption(2, "Не отправлять «онлайн»", partygramGhostDontSendOnlineEnabled(settings)))
         entries.append(.ghostOption(3, "Не отправлять «печатает»", settings.partygramGhostDontSendTyping))
-        entries.append(.ghostOption(4, "Автоматический «офлайн»", settings.partygramGhostAutoOffline))
         entries.append(.ghostOptionsInfo("Зажмите любую опцию, чтобы зафиксировать её значение."))
     }
     entries.append(.readOnActions("Читать при действиях", settings.partygramGhostReadOnActions))
