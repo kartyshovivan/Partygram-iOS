@@ -1433,6 +1433,35 @@ public class Account {
             return shouldSuppress ? [:] : activities
         }
         self.managedOperationsDisposable.add(managedLocalTypingActivities(activities: localInputActivities, postbox: self.stateManager.postbox, network: self.stateManager.network, accountPeerId: self.stateManager.accountPeerId).start())
+        let pendingOutgoingActivityCount: [Signal<Int, NoError>] = [
+            self.pendingMessageManager.pendingMessageCount |> map { pendingMessageCount in
+                return pendingMessageCount.values.reduce(into: 0, { $0 += $1 })
+            },
+            (self.pendingStoryManager?.hasPending ?? .single(false)) |> map { hasPending in
+                return hasPending ? 1 : 0
+            },
+            self.pendingUpdateMessageManager.updatingMessageMedia |> map { updatingMessageMedia in
+                return updatingMessageMedia.count
+            },
+            self.pendingPeerMediaUploadManager.uploadingPeerMedia |> map { uploadingPeerMedia in
+                return uploadingPeerMedia.count
+            }
+        ]
+        let previousPendingOutgoingActivityCount = Atomic<Int>(value: 0)
+        self.managedOperationsDisposable.add((combineLatest(queue: Queue(), pendingOutgoingActivityCount)
+        |> map { counts -> Int in
+            return counts.reduce(0, +)
+        }
+        |> distinctUntilChanged).start(next: { [weak self] pendingOutgoingActivityCount in
+            guard let strongSelf = self else {
+                return
+            }
+            let previousValue = previousPendingOutgoingActivityCount.swap(pendingOutgoingActivityCount)
+            if previousValue > 0 && pendingOutgoingActivityCount == 0 {
+                // Outgoing send/upload RPCs can refresh server-side presence after the app already went offline.
+                strongSelf.accountPresenceManager.confirmOfflineUpdateIfNeeded()
+            }
+        }))
         
         let extractedExpr1: [Signal<AccountRunningImportantTasks, NoError>] = [
             managedSynchronizeChatInputStateOperations(postbox: self.postbox, network: self.network) |> map { inputStates in

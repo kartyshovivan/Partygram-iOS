@@ -20,6 +20,7 @@ private final class AccountPresenceManagerImpl {
     
     private var desiredOnline: Bool = false
     private var wasOnline: Bool = false
+    private var pendingOfflineConfirmations: Int = 0
     
     init(queue: Queue, shouldKeepOnlinePresence: Signal<Bool, NoError>, network: Network) {
         self.queue = queue
@@ -70,6 +71,14 @@ private final class AccountPresenceManagerImpl {
         self.retryTimer = timer
         timer.start()
     }
+
+    private func scheduleOfflineConfirmationIfNeeded() {
+        guard !self.desiredOnline && self.pendingOfflineConfirmations > 0 else {
+            return
+        }
+        self.pendingOfflineConfirmations -= 1
+        self.scheduleRetry(isOnline: false)
+    }
     
     private func updatePresence(_ isOnline: Bool) {
         self.retryTimer?.invalidate()
@@ -77,6 +86,7 @@ private final class AccountPresenceManagerImpl {
 
         let request: Signal<Api.Bool, MTRpcError>
         if isOnline {
+            self.pendingOfflineConfirmations = 0
             self.onlineTimer?.invalidate()
             self.onlineTimer = nil
             request = self.network.request(Api.functions.account.updateStatus(offline: .boolFalse))
@@ -103,6 +113,8 @@ private final class AccountPresenceManagerImpl {
             if succeeded {
                 if isOnline && strongSelf.desiredOnline {
                     strongSelf.scheduleOnlineRefresh()
+                } else if !isOnline {
+                    strongSelf.scheduleOfflineConfirmationIfNeeded()
                 }
             } else if strongSelf.desiredOnline == isOnline {
                 strongSelf.scheduleRetry(isOnline: isOnline)
@@ -111,7 +123,7 @@ private final class AccountPresenceManagerImpl {
             guard let strongSelf = self else {
                 return
             }
-            if strongSelf.currentRequestId == requestId {
+            if strongSelf.currentRequestId == requestId && strongSelf.retryTimer == nil {
                 strongSelf.isPerformingUpdate.set(false)
             }
         }))
@@ -120,6 +132,16 @@ private final class AccountPresenceManagerImpl {
     func forceOfflineUpdate() {
         self.desiredOnline = false
         self.wasOnline = false
+        self.pendingOfflineConfirmations = max(self.pendingOfflineConfirmations, 2)
+        self.updatePresence(false)
+    }
+
+    func confirmOfflineUpdateIfNeeded() {
+        guard !self.desiredOnline else {
+            return
+        }
+        self.wasOnline = false
+        self.pendingOfflineConfirmations = max(self.pendingOfflineConfirmations, 2)
         self.updatePresence(false)
     }
 }
@@ -150,6 +172,12 @@ final class AccountPresenceManager {
     func forceOfflineUpdate() {
         self.impl.with { impl in
             impl.forceOfflineUpdate()
+        }
+    }
+
+    func confirmOfflineUpdateIfNeeded() {
+        self.impl.with { impl in
+            impl.confirmOfflineUpdateIfNeeded()
         }
     }
 }
