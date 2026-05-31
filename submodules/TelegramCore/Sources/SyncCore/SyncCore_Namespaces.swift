@@ -328,6 +328,7 @@ private enum PreferencesKeyValues: Int32 {
     case globalPostSearchState = 46
     case savedMusicIds = 47
     case emojiGameInfo = 48
+    case partygramAccountPresenceSettings = 49
 }
 
 public func applicationSpecificPreferencesKey(_ value: Int32) -> ValueBoxKey {
@@ -388,6 +389,12 @@ public struct PreferencesKeys {
     public static let appChangelogState: ValueBoxKey = {
         let key = ValueBoxKey(length: 4)
         key.setInt32(0, value: PreferencesKeyValues.appChangelogState.rawValue)
+        return key
+    }()
+
+    public static let partygramAccountPresenceSettings: ValueBoxKey = {
+        let key = ValueBoxKey(length: 4)
+        key.setInt32(0, value: PreferencesKeyValues.partygramAccountPresenceSettings.rawValue)
         return key
     }()
     

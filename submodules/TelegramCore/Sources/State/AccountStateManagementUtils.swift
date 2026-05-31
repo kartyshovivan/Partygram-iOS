@@ -4946,15 +4946,24 @@ func replayFinalState(
                 for (peerId, status) in statuses {
                     if peerId == accountPeerId {
                         if explicit {
+                            var partygramRemoteLastOnlineTimestamp: Int32?
                             switch status {
                                 case let .userStatusOnline(userStatusOnlineData):
                                     let timestamp = userStatusOnlineData.expires
                                     delayNotificatonsUntil = timestamp + 30
+                                    partygramRemoteLastOnlineTimestamp = Int32(Date().timeIntervalSince1970)
                                 case let .userStatusOffline(userStatusOfflineData):
                                     let timestamp = userStatusOfflineData.wasOnline
                                     delayNotificatonsUntil = timestamp
+                                    partygramRemoteLastOnlineTimestamp = timestamp
                                 default:
                                     break
+                            }
+                            if let partygramRemoteLastOnlineTimestamp = partygramRemoteLastOnlineTimestamp {
+                                transaction.updatePreferencesEntry(key: PreferencesKeys.partygramAccountPresenceSettings, { current in
+                                    let settings = current?.get(PartygramAccountPresenceSettings.self) ?? .defaultSettings
+                                    return PreferencesEntry(settings.withUpdatedRemoteLastOnlineTimestamp(partygramRemoteLastOnlineTimestamp))
+                                })
                             }
                         }
                     } else {

@@ -187,6 +187,7 @@ public final class AccountContextImpl: AccountContext {
     private var managedAppSpecificContactsDisposable: Disposable?
     
     private var experimentalUISettingsDisposable: Disposable?
+    private var partygramAccountPresenceSettingsDisposable: Disposable?
     private var partygramSuppressOnlinePresence = false
     
     public let cachedGroupCallContexts: AccountGroupCallContextCache
@@ -536,6 +537,19 @@ public final class AccountContextImpl: AccountContext {
             self.partygramSuppressOnlinePresence = shouldSuppressOnlinePresence
             (self.animationRenderer as? DCTMultiAnimationRendererImpl)?.useYuvA = settings.compressedEmojiCache
         })
+
+        self.partygramAccountPresenceSettingsDisposable = (account.postbox.preferencesView(keys: [PreferencesKeys.partygramAccountPresenceSettings])
+        |> deliverOnMainQueue).start(next: { [weak self] view in
+            guard let self else {
+                return
+            }
+            let settings = view.values[PreferencesKeys.partygramAccountPresenceSettings]?.get(PartygramAccountPresenceSettings.self) ?? .defaultSettings
+            let timestamp = settings.remoteLastOnlineTimestamp
+            guard timestamp > self.sharedContext.immediateExperimentalUISettings.partygramGhostLastOnlineTimestamp else {
+                return
+            }
+            updatePartygramGhostLastOnlineTimestamp(accountManager: self.sharedContext.accountManager, timestamp: timestamp)
+        })
     }
     
     deinit {
@@ -545,6 +559,7 @@ public final class AccountContextImpl: AccountContext {
         self.appConfigurationDisposable?.dispose()
         self.countriesConfigurationDisposable?.dispose()
         self.experimentalUISettingsDisposable?.dispose()
+        self.partygramAccountPresenceSettingsDisposable?.dispose()
         self.animatedEmojiStickersDisposable?.dispose()
         self.userLimitsConfigurationDisposable?.dispose()
         self.peerNameColorsConfigurationDisposable?.dispose()
