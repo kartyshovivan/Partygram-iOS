@@ -1252,14 +1252,13 @@ final class PeerInfoHeaderNode: ASDisplayNode {
                 
                 let settings = self.context.sharedContext.immediateExperimentalUISettings
                 if settings.partygramGhostMode && settings.partygramGhostDontSendOnline, settings.partygramGhostLastOnlineTimestamp > 0 {
-                    subtitleStringText = stringAndActivityForUserPresence(
+                    subtitleStringText = stringForUserPresenceLastSeenTimestamp(
                         strings: presentationData.strings,
                         dateTimeFormat: presentationData.dateTimeFormat,
-                        presence: EnginePeer.Presence(status: .present(until: settings.partygramGhostLastOnlineTimestamp), lastActivity: settings.partygramGhostLastOnlineTimestamp),
+                        timestamp: settings.partygramGhostLastOnlineTimestamp,
                         relativeTo: Int32(Date().timeIntervalSince1970),
-                        expanded: true,
                         showSeconds: settings.partygramShowSecondsInMessageTime
-                    ).0
+                    )
                 } else {
                     subtitleStringText = presentationData.strings.Presence_online
                 }

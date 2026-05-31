@@ -174,7 +174,7 @@ public func stringForCompactDate(timestamp: Int32, strings: PresentationStrings,
     var t: time_t = time_t(timestamp)
     var timeinfo: tm = tm()
     localtime_r(&t, &timeinfo)
-    
+
     return "\(shortStringForDayOfWeek(strings: strings, day: timeinfo.tm_wday)) \(timeinfo.tm_mday) \(monthAtIndex(Int(timeinfo.tm_mon), strings: strings))"
 }
 
@@ -184,13 +184,13 @@ public func stringForCompactBirthday(_ birthday: TelegramBirthday, strings: Pres
     components.append(monthAtIndex(Int(birthday.month) - 1, strings: strings))
     if let year = birthday.year {
         components.append("\(year)")
-        
+
         if showAge {
             var dateComponents = DateComponents()
             dateComponents.day = Int(birthday.day)
             dateComponents.month = Int(birthday.month)
             dateComponents.year = Int(year)
-             
+
             let calendar = Calendar.current
             if let birthDate = calendar.date(from: dateComponents) {
                 if let age = calendar.dateComponents([.year], from: birthDate, to: Date()).year, age > 0 {
@@ -211,7 +211,7 @@ public func ageForBirthday(_ birthday: TelegramBirthday) -> Int? {
     dateComponents.day = Int(birthday.day)
     dateComponents.month = Int(birthday.month)
     dateComponents.year = Int(year)
-     
+
     let calendar = Calendar.current
     if let birthDate = calendar.date(from: dateComponents) {
         if let age = calendar.dateComponents([.year], from: birthDate, to: Date()).year {
@@ -251,7 +251,7 @@ private func humanReadableStringForTimestamp(strings: PresentationStrings, day: 
     case .tomorrow:
         let string = stringForShortTimestamp(hours: hours, minutes: minutes, seconds: seconds, dateTimeFormat: dateTimeFormat)
         result = format?.tomorrowFormatString(string) ?? strings.Time_TomorrowAt(string)
-        
+
     }
     return result
 }
@@ -262,7 +262,7 @@ public struct HumanReadableStringFormat {
     let todayFormatString: (String) -> PresentationStrings.FormattedString
     let yesterdayFormatString: (String) -> PresentationStrings.FormattedString
     let daysFormatString: ((Int) -> PresentationStrings.FormattedString)?
-    
+
     public init(
         dateFormatString: @escaping (String) -> PresentationStrings.FormattedString,
         tomorrowFormatString: @escaping (String) -> PresentationStrings.FormattedString,
@@ -282,12 +282,12 @@ public func humanReadableStringForTimestamp(strings: PresentationStrings, dateTi
     var t: time_t = time_t(timestamp)
     var timeinfo: tm = tm()
     localtime_r(&t, &timeinfo)
-    
+
     let timestampNow = Int32(CFAbsoluteTimeGetCurrent() + NSTimeIntervalSince1970)
     var now: time_t = time_t(timestampNow)
     var timeinfoNow: tm = tm()
     localtime_r(&now, &timeinfoNow)
-    
+
     if timeinfo.tm_year != timeinfoNow.tm_year {
         let string: String
         if alwaysShowTime {
@@ -297,7 +297,7 @@ public func humanReadableStringForTimestamp(strings: PresentationStrings, dateTi
         }
         return format?.dateFormatString(string) ?? PresentationStrings.FormattedString(string: string, ranges: [])
     }
-    
+
     let dayDifference = timeinfo.tm_yday - timeinfoNow.tm_yday
     if dayDifference == 0 || (dayDifference == -1 && allowYesterday) || dayDifference == 1 {
         let day: RelativeTimestampFormatDay
@@ -369,15 +369,15 @@ public func stringForRelativeTimestamp(strings: PresentationStrings, relativeTim
     var t: time_t = time_t(relativeTimestamp)
     var timeinfo: tm = tm()
     localtime_r(&t, &timeinfo)
-    
+
     var now: time_t = time_t(timestamp)
     var timeinfoNow: tm = tm()
     localtime_r(&now, &timeinfoNow)
-    
+
     if timeinfo.tm_year != timeinfoNow.tm_year {
         return stringForTimestamp(day: timeinfo.tm_mday, month: timeinfo.tm_mon + 1, year: timeinfo.tm_year, dateTimeFormat: dateTimeFormat)
     }
-    
+
     let dayDifference = timeinfo.tm_yday - timeinfoNow.tm_yday
     if dayDifference > -7 {
         if dayDifference == 0 {
@@ -394,11 +394,11 @@ public func stringForPreciseRelativeTimestamp(strings: PresentationStrings, rela
     var t: time_t = time_t(relativeTimestamp)
     var timeinfo: tm = tm()
     localtime_r(&t, &timeinfo)
-    
+
     var now: time_t = time_t(timestamp)
     var timeinfoNow: tm = tm()
     localtime_r(&now, &timeinfoNow)
-    
+
     let dayDifference = timeinfo.tm_yday - timeinfoNow.tm_yday
     if dayDifference == 0 {
         return stringForShortTimestamp(hours: timeinfo.tm_hour, minutes: timeinfo.tm_min, dateTimeFormat: dateTimeFormat)
@@ -418,16 +418,16 @@ public func stringForRelativeLiveLocationTimestamp(strings: PresentationStrings,
         var t: time_t = time_t(relativeTimestamp)
         var timeinfo: tm = tm()
         localtime_r(&t, &timeinfo)
-        
+
         var now: time_t = time_t(timestamp)
         var timeinfoNow: tm = tm()
         localtime_r(&now, &timeinfoNow)
-        
+
         let dayDifference = timeinfo.tm_yday - timeinfoNow.tm_yday
-        
+
         let hours = timeinfo.tm_hour
         let minutes = timeinfo.tm_min
-        
+
         if dayDifference == 0 {
             return strings.LiveLocationUpdated_TodayAt(stringForShortTimestamp(hours: hours, minutes: minutes, dateTimeFormat: dateTimeFormat)).string
         } else {
@@ -440,16 +440,16 @@ public func stringForRelativeSymbolicTimestamp(strings: PresentationStrings, rel
     var t: time_t = time_t(relativeTimestamp)
     var timeinfo: tm = tm()
     localtime_r(&t, &timeinfo)
-    
+
     var now: time_t = time_t(timestamp)
     var timeinfoNow: tm = tm()
     localtime_r(&now, &timeinfoNow)
-    
+
     let dayDifference = timeinfo.tm_yday - timeinfoNow.tm_yday
-    
+
     let hours = timeinfo.tm_hour
     let minutes = timeinfo.tm_min
-    
+
     if dayDifference == 0 {
         return strings.Time_TodayAt(stringForShortTimestamp(hours: hours, minutes: minutes, dateTimeFormat: dateTimeFormat)).string
     } else {
@@ -461,15 +461,15 @@ public func stringForRelativeLiveLocationUpdateTimestamp(strings: PresentationSt
     var t: time_t = time_t(relativeTimestamp)
     var timeinfo: tm = tm()
     localtime_r(&t, &timeinfo)
-    
+
     var now: time_t = time_t(timestamp)
     var timeinfoNow: tm = tm()
     localtime_r(&now, &timeinfoNow)
-    
+
     if timeinfo.tm_year != timeinfoNow.tm_year {
         return stringForTimestamp(day: timeinfo.tm_mday, month: timeinfo.tm_mon + 1, year: timeinfo.tm_year, dateTimeFormat: dateTimeFormat)
     }
-    
+
     let dayDifference = timeinfo.tm_yday - timeinfoNow.tm_yday
     if dayDifference > -7 {
         if dayDifference == 0 {
@@ -493,15 +493,15 @@ public func stringForRelativeActivityTimestamp(strings: PresentationStrings, dat
         var t: time_t = time_t(relativeTimestamp)
         var timeinfo: tm = tm()
         localtime_r(&t, &timeinfo)
-        
+
         var now: time_t = time_t(timestamp)
         var timeinfoNow: tm = tm()
         localtime_r(&now, &timeinfoNow)
-        
+
         if timeinfo.tm_year != timeinfoNow.tm_year {
             return strings.Time_AtDate(stringForTimestamp(day: timeinfo.tm_mday, month: timeinfo.tm_mon + 1, year: timeinfo.tm_year, dateTimeFormat: dateTimeFormat)).string
         }
-        
+
         let dayDifference = timeinfo.tm_yday - timeinfoNow.tm_yday
         if dayDifference == 0 || dayDifference == -1 {
             let day: RelativeTimestampFormatDay
@@ -531,15 +531,15 @@ public func stringForStoryActivityTimestamp(strings: PresentationStrings, dateTi
         var t: time_t = time_t(relativeTimestamp)
         var timeinfo: tm = tm()
         localtime_r(&t, &timeinfo)
-        
+
         var now: time_t = time_t(timestamp)
         var timeinfoNow: tm = tm()
         localtime_r(&now, &timeinfoNow)
-        
+
         if timeinfo.tm_year != timeinfoNow.tm_year {
             return strings.Time_AtDate(stringForTimestamp(day: timeinfo.tm_mday, month: timeinfo.tm_mon + 1, year: timeinfo.tm_year, dateTimeFormat: dateTimeFormat)).string
         }
-        
+
         let dayDifference = timeinfo.tm_yday - timeinfoNow.tm_yday
         if dayDifference == 0 || dayDifference == -1 {
             let day: RelativeTimestampFormatDay
@@ -561,7 +561,7 @@ public func stringForStoryActivityTimestamp(strings: PresentationStrings, dateTi
             } else {
                 yearDate = strings.Date_ChatDateHeaderYear(monthAtIndex(Int(timeinfo.tm_mon), strings: strings), "\(timeinfo.tm_mday)", "\(1900 + timeinfo.tm_year)").string
             }
-            
+
             return strings.Time_AtPreciseDate(yearDate, stringForShortTimestamp(hours: timeinfo.tm_hour, minutes: timeinfo.tm_min, dateTimeFormat: dateTimeFormat)).string
         } else {
             return strings.Time_AtDate(stringForTimestamp(day: timeinfo.tm_mday, month: timeinfo.tm_mon + 1, year: timeinfo.tm_year, dateTimeFormat: dateTimeFormat)).string
@@ -585,15 +585,15 @@ public func stringAndActivityForUserPresence(strings: PresentationStrings, dateT
                 var t: time_t = time_t(statusTimestamp)
                 var timeinfo: tm = tm()
                 localtime_r(&t, &timeinfo)
-                
+
                 var now: time_t = time_t(timestamp)
                 var timeinfoNow: tm = tm()
                 localtime_r(&now, &timeinfoNow)
-                
+
                 if timeinfo.tm_year != timeinfoNow.tm_year {
                     return (strings.LastSeen_AtDate(stringForTimestamp(day: timeinfo.tm_mday, month: timeinfo.tm_mon + 1, year: timeinfo.tm_year, dateTimeFormat: dateTimeFormat)).string, false)
                 }
-                
+
                 let dayDifference = timeinfo.tm_yday - timeinfoNow.tm_yday
                 if dayDifference == 0 || dayDifference == -1 {
                     let day: RelativeTimestampFormatDay
@@ -629,6 +629,28 @@ public func stringAndActivityForUserPresence(strings: PresentationStrings, dateT
     }
 }
 
+public func stringForUserPresenceLastSeenTimestamp(strings: PresentationStrings, dateTimeFormat: PresentationDateTimeFormat, timestamp: Int32, relativeTo relativeTimestamp: Int32, showSeconds: Bool = false) -> String {
+    var t: time_t = time_t(timestamp)
+    var timeinfo: tm = tm()
+    localtime_r(&t, &timeinfo)
+
+    var now: time_t = time_t(relativeTimestamp)
+    var timeinfoNow: tm = tm()
+    localtime_r(&now, &timeinfoNow)
+
+    if timeinfo.tm_year != timeinfoNow.tm_year {
+        return strings.LastSeen_AtDate(stringForTimestamp(day: timeinfo.tm_mday, month: timeinfo.tm_mon + 1, year: timeinfo.tm_year, dateTimeFormat: dateTimeFormat)).string
+    }
+
+    let dayDifference = timeinfo.tm_yday - timeinfoNow.tm_yday
+    if dayDifference == 0 || dayDifference == -1 {
+        let day: RelativeTimestampFormatDay = dayDifference == 0 ? .today : .yesterday
+        return stringForUserPresence(strings: strings, day: day, dateTimeFormat: dateTimeFormat, hours: timeinfo.tm_hour, minutes: timeinfo.tm_min, seconds: showSeconds ? timeinfo.tm_sec : nil)
+    } else {
+        return strings.LastSeen_AtDate(stringForTimestamp(day: timeinfo.tm_mday, month: timeinfo.tm_mon + 1, year: timeinfo.tm_year, dateTimeFormat: dateTimeFormat)).string
+    }
+}
+
 public func peerStatusExpirationString(statusTimestamp: Int32, relativeTo timestamp: Int32, strings: PresentationStrings, dateTimeFormat: PresentationDateTimeFormat) -> String {
     let difference = max(statusTimestamp - timestamp, 60)
     if difference < 60 * 60 {
@@ -639,11 +661,11 @@ public func peerStatusExpirationString(statusTimestamp: Int32, relativeTo timest
         var t: time_t = time_t(statusTimestamp)
         var timeinfo: tm = tm()
         localtime_r(&t, &timeinfo)
-        
+
         var now: time_t = time_t(timestamp)
         var timeinfoNow: tm = tm()
         localtime_r(&now, &timeinfoNow)
-        
+
         let dayDifference = timeinfo.tm_yday - timeinfoNow.tm_yday
         if dayDifference == 1 {
             return strings.PeerStatusExpiration_TomorrowAt(stringForShortTimestamp(hours: timeinfo.tm_hour, minutes: timeinfo.tm_min, dateTimeFormat: dateTimeFormat)).string
@@ -712,6 +734,6 @@ public func stringForGiftUpgradeTimestamp(strings: PresentationStrings, dateTime
 
     let time = stringForShortTimestamp(hours: timeinfo.tm_hour, minutes: timeinfo.tm_min, dateTimeFormat: dateTimeFormat)
     let date = strings.Date_ChatDateHeader(monthAtIndex(Int(timeinfo.tm_mon), strings: strings), "\(timeinfo.tm_mday)").string
-    
+
     return "\(time), \(date)"
 }

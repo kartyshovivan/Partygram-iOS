@@ -137,7 +137,7 @@ private final class DownloadedMediaStoreContext {
                     switch peer {
                     case .user:
                         if let cachedUserData = cachedData as? CachedUserData, cachedUserData.flags.contains(.copyProtectionEnabled) || cachedUserData.flags.contains(.myCopyProtectionEnabled) {
-                            return false
+                            return (false, "Telegram")
                         }
                         peerTypeValue = .users
                     case .secretChat:
