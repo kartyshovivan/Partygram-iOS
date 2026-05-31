@@ -9,23 +9,114 @@ import ItemListUI
 import AccountContext
 import AlertUI
 import PresentationDataUtils
+import LegacyMediaPickerUI
+
+private let partygramDatabaseFormat = "partygram-settings-v1"
+
+private struct PartygramDatabaseSnapshot: Codable {
+    var format: String
+    var version: Int32
+    var exportedAt: Int32
+
+    var ghostMode: Bool
+    var ghostDontReadMessages: Bool
+    var ghostDontReadStories: Bool
+    var ghostDontSendOnline: Bool
+    var ghostDontSendTyping: Bool
+    var ghostReadOnActions: Bool
+    var ghostUseDelay: Bool
+    var ghostSilentSendMode: Int32
+    var ghostSuggestForStories: Bool
+    var ghostLastOnlineTimestamp: Int32
+    var showSecondsInMessageTime: Bool
+
+    var spySaveDeletedMessages: Bool
+    var spySaveEditHistory: Bool
+    var spySaveBotChats: Bool
+    var spySaveReadDate: Bool
+    var spySaveLastOnline: Bool
+    var savedLastOnlineTimestamps: [String: Int32]
+    var spySaveAttachments: Bool
+    var spyAttachmentsFolder: String
+    var spyMaxFolderSize: Int32
+
+    init(settings: ExperimentalUISettings, exportedAt: Int32) {
+        self.format = partygramDatabaseFormat
+        self.version = 1
+        self.exportedAt = exportedAt
+
+        self.ghostMode = settings.partygramGhostMode
+        self.ghostDontReadMessages = settings.partygramGhostDontReadMessages
+        self.ghostDontReadStories = settings.partygramGhostDontReadStories
+        self.ghostDontSendOnline = settings.partygramGhostDontSendOnline
+        self.ghostDontSendTyping = settings.partygramGhostDontSendTyping
+        self.ghostReadOnActions = settings.partygramGhostReadOnActions
+        self.ghostUseDelay = settings.partygramGhostUseDelay
+        self.ghostSilentSendMode = settings.partygramGhostSilentSendMode
+        self.ghostSuggestForStories = settings.partygramGhostSuggestForStories
+        self.ghostLastOnlineTimestamp = settings.partygramGhostLastOnlineTimestamp
+        self.showSecondsInMessageTime = settings.partygramShowSecondsInMessageTime
+
+        self.spySaveDeletedMessages = settings.partygramSpySaveDeletedMessages
+        self.spySaveEditHistory = settings.partygramSpySaveEditHistory
+        self.spySaveBotChats = settings.partygramSpySaveBotChats
+        self.spySaveReadDate = settings.partygramSpySaveReadDate
+        self.spySaveLastOnline = settings.partygramSpySaveLastOnline
+        self.savedLastOnlineTimestamps = settings.partygramSavedLastOnlineTimestamps
+        self.spySaveAttachments = settings.partygramSpySaveAttachments
+        self.spyAttachmentsFolder = settings.partygramSpyAttachmentsFolder
+        self.spyMaxFolderSize = settings.partygramSpyMaxFolderSize
+    }
+
+    func apply(to settings: inout ExperimentalUISettings) {
+        settings.partygramGhostMode = self.ghostMode
+        settings.partygramGhostDontReadMessages = self.ghostDontReadMessages
+        settings.partygramGhostDontReadStories = self.ghostDontReadStories
+        settings.partygramGhostDontSendOnline = self.ghostDontSendOnline
+        settings.partygramGhostDontSendTyping = self.ghostDontSendTyping
+        settings.partygramGhostReadOnActions = self.ghostReadOnActions
+        settings.partygramGhostUseDelay = self.ghostUseDelay
+        settings.partygramGhostSilentSendMode = self.ghostSilentSendMode
+        settings.partygramGhostSuggestForStories = self.ghostSuggestForStories
+        settings.partygramGhostLastOnlineTimestamp = self.ghostLastOnlineTimestamp
+        settings.partygramShowSecondsInMessageTime = self.showSecondsInMessageTime
+
+        settings.partygramSpySaveDeletedMessages = self.spySaveDeletedMessages
+        settings.partygramSpySaveEditHistory = self.spySaveEditHistory
+        settings.partygramSpySaveBotChats = self.spySaveBotChats
+        settings.partygramSpySaveReadDate = self.spySaveReadDate
+        settings.partygramSpySaveLastOnline = self.spySaveLastOnline
+        settings.partygramSavedLastOnlineTimestamps = self.savedLastOnlineTimestamps
+        settings.partygramSpySaveAttachments = self.spySaveAttachments
+        settings.partygramSpyAttachmentsFolder = self.spyAttachmentsFolder
+        settings.partygramSpyMaxFolderSize = self.spyMaxFolderSize
+
+        applyPartygramDerivedSettings(&settings)
+    }
+}
 
 private final class PartygramSettingsArguments {
     let updateSettings: (@escaping (ExperimentalUISettings) -> ExperimentalUISettings) -> Void
     let openSilentMode: () -> Void
     let openFolderSize: () -> Void
-    let showPlaceholder: (String) -> Void
-    
+    let exportDatabase: () -> Void
+    let importDatabase: () -> Void
+    let clearDatabase: () -> Void
+
     init(
         updateSettings: @escaping (@escaping (ExperimentalUISettings) -> ExperimentalUISettings) -> Void,
         openSilentMode: @escaping () -> Void,
         openFolderSize: @escaping () -> Void,
-        showPlaceholder: @escaping (String) -> Void
+        exportDatabase: @escaping () -> Void,
+        importDatabase: @escaping () -> Void,
+        clearDatabase: @escaping () -> Void
     ) {
         self.updateSettings = updateSettings
         self.openSilentMode = openSilentMode
         self.openFolderSize = openFolderSize
-        self.showPlaceholder = showPlaceholder
+        self.exportDatabase = exportDatabase
+        self.importDatabase = importDatabase
+        self.clearDatabase = clearDatabase
     }
 }
 
@@ -52,7 +143,7 @@ private enum PartygramSettingsEntry: ItemListNodeEntry {
     case preciseMessageTimeInfo(String)
     case suggestForStories(String, Bool)
     case suggestForStoriesInfo(String)
-    
+
     case spyHeader(String)
     case saveDeletedMessages(String, Bool)
     case saveEditHistory(String, Bool)
@@ -69,7 +160,7 @@ private enum PartygramSettingsEntry: ItemListNodeEntry {
     case exportDatabase(String)
     case importDatabase(String)
     case clearDatabase(String)
-    
+
     var section: ItemListSectionId {
         switch self {
         case .ghostHeader, .ghostMode, .ghostOption, .ghostOptionsInfo:
@@ -84,7 +175,7 @@ private enum PartygramSettingsEntry: ItemListNodeEntry {
             return PartygramSettingsSection.spyDatabase.rawValue
         }
     }
-    
+
     var stableId: Int32 {
         switch self {
         case .ghostHeader:
@@ -149,7 +240,7 @@ private enum PartygramSettingsEntry: ItemListNodeEntry {
             return 115
         }
     }
-    
+
     static func ==(lhs: PartygramSettingsEntry, rhs: PartygramSettingsEntry) -> Bool {
         switch lhs {
         case let .ghostHeader(text):
@@ -214,11 +305,11 @@ private enum PartygramSettingsEntry: ItemListNodeEntry {
             if case .clearDatabase(text) = rhs { return true } else { return false }
         }
     }
-    
+
     static func <(lhs: PartygramSettingsEntry, rhs: PartygramSettingsEntry) -> Bool {
         return lhs.stableId < rhs.stableId
     }
-    
+
     func item(presentationData: ItemListPresentationData, arguments: Any) -> ListViewItem {
         let arguments = arguments as! PartygramSettingsArguments
         switch self {
@@ -341,8 +432,15 @@ private enum PartygramSettingsEntry: ItemListNodeEntry {
                 }
             })
         case let .attachmentsFolder(text, value):
-            return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: text, label: value, labelStyle: .text, sectionId: self.section, style: .blocks, action: {
-                arguments.showPlaceholder("Папка вложений будет использована для сохранённых вложений.")
+            return ItemListSingleLineInputItem(presentationData: presentationData, systemStyle: .glass, title: NSAttributedString(string: text, textColor: presentationData.theme.list.itemPrimaryTextColor), text: value, placeholder: "Saved Attachments", type: .regular(capitalization: true, autocorrection: false), returnKeyType: .done, spacing: 10.0, clearType: .always, maxLength: 80, sectionId: self.section, textUpdated: { value in
+                arguments.updateSettings { settings in
+                    var settings = settings
+                    settings.partygramSpyAttachmentsFolder = partygramNormalizedAttachmentsFolder(value)
+                    return settings
+                }
+            }, shouldUpdateText: { value in
+                return partygramIsValidAttachmentsFolderInput(value)
+            }, action: {
             })
         case let .folderSize(text, value):
             return ItemListDisclosureItem(presentationData: presentationData, systemStyle: .glass, title: text, label: value, labelStyle: .text, sectionId: self.section, style: .blocks, action: {
@@ -350,15 +448,15 @@ private enum PartygramSettingsEntry: ItemListNodeEntry {
             })
         case let .exportDatabase(text):
             return ItemListActionItem(presentationData: presentationData, systemStyle: .glass, title: text, kind: .generic, alignment: .natural, sectionId: self.section, style: .blocks, action: {
-                arguments.showPlaceholder("Экспорт базы данных Partygram будет подключён к локальному хранилищу.")
+                arguments.exportDatabase()
             })
         case let .importDatabase(text):
             return ItemListActionItem(presentationData: presentationData, systemStyle: .glass, title: text, kind: .generic, alignment: .natural, sectionId: self.section, style: .blocks, action: {
-                arguments.showPlaceholder("Импорт базы данных Partygram будет подключён к локальному хранилищу.")
+                arguments.importDatabase()
             })
         case let .clearDatabase(text):
             return ItemListActionItem(presentationData: presentationData, systemStyle: .glass, title: text, kind: .destructive, alignment: .natural, sectionId: self.section, style: .blocks, action: {
-                arguments.showPlaceholder("Очистка базы данных Partygram будет подключена к локальному хранилищу.")
+                arguments.clearDatabase()
             })
         }
     }
@@ -371,6 +469,20 @@ private func applyPartygramDerivedSettings(_ settings: inout ExperimentalUISetti
     }
     settings.skipReadHistory = settings.partygramGhostMode && settings.partygramGhostDontReadMessages
     settings.hideTypingActivity = settings.partygramGhostMode && settings.partygramGhostDontSendTyping
+}
+
+private func partygramNormalizedAttachmentsFolder(_ value: String) -> String {
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? "Saved Attachments" : trimmed
+}
+
+private func partygramIsValidAttachmentsFolderInput(_ value: String) -> Bool {
+    return value.rangeOfCharacter(from: CharacterSet(charactersIn: "/\\:")) == nil
+}
+
+private func clearPartygramStoredDatabaseData(_ settings: inout ExperimentalUISettings) {
+    settings.partygramGhostLastOnlineTimestamp = 0
+    settings.partygramSavedLastOnlineTimestamps.removeAll()
 }
 
 private func partygramGhostDontSendOnlineEnabled(_ settings: ExperimentalUISettings) -> Bool {
@@ -414,7 +526,7 @@ private func partygramFolderSizeTitle(_ value: Int32) -> String {
 
 private func partygramSettingsEntries(settings: ExperimentalUISettings) -> [PartygramSettingsEntry] {
     var entries: [PartygramSettingsEntry] = []
-    
+
     entries.append(.ghostHeader("Режим призрака"))
     entries.append(.ghostMode("Режим призрака", settings.partygramGhostMode, "\(partygramGhostEnabledCount(settings))/4"))
     if settings.partygramGhostMode {
@@ -434,7 +546,7 @@ private func partygramSettingsEntries(settings: ExperimentalUISettings) -> [Part
     entries.append(.preciseMessageTimeInfo("Добавляет секунды ко времени сообщений, например 04:03:19."))
     entries.append(.suggestForStories("Предлагать призрака для сторис", settings.partygramGhostSuggestForStories))
     entries.append(.suggestForStoriesInfo("Показывает предупреждение перед открытием сторис, предлагая включить режим призрака."))
-    
+
     entries.append(.spyHeader("Режим шпиона"))
     entries.append(.saveDeletedMessages("Сохранять удалённые сообщения", settings.partygramSpySaveDeletedMessages))
     entries.append(.saveEditHistory("Сохранять историю правок", settings.partygramSpySaveEditHistory))
@@ -447,30 +559,30 @@ private func partygramSettingsEntries(settings: ExperimentalUISettings) -> [Part
     entries.append(.attachmentsFolder("Папка вложений", settings.partygramSpyAttachmentsFolder))
     entries.append(.folderSizeHeader("Максимальный размер папки"))
     entries.append(.folderSize("Максимальный размер папки", partygramFolderSizeTitle(settings.partygramSpyMaxFolderSize)))
-    entries.append(.folderSizeInfo("Если размер папки превышает этот лимит, самые старые вложения будут удалены с устройства."))
+    entries.append(.folderSizeInfo("Лимит используется для автосохранения видео: файлы больше выбранного размера не будут сохранены в альбом вложений."))
     entries.append(.exportDatabase("Экспорт базы данных"))
     entries.append(.importDatabase("Импорт базы данных"))
     entries.append(.clearDatabase("Очистить"))
-    
+
     return entries
 }
 
 public func partygramSettingsController(context: AccountContext) -> ViewController {
     var presentControllerImpl: ((ViewController) -> Void)?
-    
+
     let updateSettings: ((@escaping (ExperimentalUISettings) -> ExperimentalUISettings) -> Void) = { f in
         let _ = updateExperimentalUISettingsInteractively(accountManager: context.sharedContext.accountManager, { settings in
             return f(settings)
         }).start()
     }
-    
-    let showPlaceholder: (String) -> Void = { text in
+
+    let showMessage: (String) -> Void = { text in
         let presentationData = context.sharedContext.currentPresentationData.with { $0 }
         presentControllerImpl?(textAlertController(context: context, title: "Partygram", text: text, actions: [
             TextAlertAction(type: .genericAction, title: presentationData.strings.Common_OK, action: {})
         ]))
     }
-    
+
     let arguments = PartygramSettingsArguments(
         updateSettings: updateSettings,
         openSilentMode: {
@@ -527,9 +639,70 @@ public func partygramSettingsController(context: AccountContext) -> ViewControll
             ])
             presentControllerImpl?(controller)
         },
-        showPlaceholder: showPlaceholder
+        exportDatabase: {
+            let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+            let timestamp = Int32(Date().timeIntervalSince1970)
+            let snapshot = PartygramDatabaseSnapshot(settings: context.sharedContext.immediateExperimentalUISettings, exportedAt: timestamp)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+
+            do {
+                let data = try encoder.encode(snapshot)
+                let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("partygram-database-\(timestamp).json")
+                try data.write(to: url, options: [.atomic])
+                let removeFile = {
+                    try? FileManager.default.removeItem(at: url)
+                }
+                let controller = legacyICloudFilePicker(theme: presentationData.theme, mode: .export, url: url, documentTypes: [], dismissed: {
+                    removeFile()
+                }, completion: { _ in
+                    removeFile()
+                })
+                presentControllerImpl?(controller)
+            } catch {
+                showMessage("Не удалось экспортировать базу данных Partygram.")
+            }
+        },
+        importDatabase: {
+            let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+            let controller = legacyICloudFilePicker(theme: presentationData.theme, mode: .import, documentTypes: ["public.json", "public.data", "public.item"], completion: { urls in
+                guard let url = urls.first else {
+                    return
+                }
+                let didAccess = url.startAccessingSecurityScopedResource()
+                defer {
+                    if didAccess {
+                        url.stopAccessingSecurityScopedResource()
+                    }
+                }
+                guard let data = try? Data(contentsOf: url), let snapshot = try? JSONDecoder().decode(PartygramDatabaseSnapshot.self, from: data), snapshot.format == partygramDatabaseFormat else {
+                    showMessage("Не удалось импортировать файл базы данных Partygram.")
+                    return
+                }
+                updateSettings { settings in
+                    var settings = settings
+                    snapshot.apply(to: &settings)
+                    return settings
+                }
+                showMessage("База данных Partygram импортирована.")
+            })
+            presentControllerImpl?(controller)
+        },
+        clearDatabase: {
+            let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+            presentControllerImpl?(textAlertController(context: context, title: "Partygram", text: "Очистить сохранённые локальные данные Partygram? Настройки останутся включёнными.", actions: [
+                TextAlertAction(type: .genericAction, title: presentationData.strings.Common_Cancel, action: {}),
+                TextAlertAction(type: .destructiveAction, title: presentationData.strings.Common_Delete, action: {
+                    updateSettings { settings in
+                        var settings = settings
+                        clearPartygramStoredDatabaseData(&settings)
+                        return settings
+                    }
+                })
+            ]))
+        }
     )
-    
+
     let signal = combineLatest(
         context.sharedContext.presentationData,
         context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.experimentalUISettings])
@@ -540,7 +713,7 @@ public func partygramSettingsController(context: AccountContext) -> ViewControll
         let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: partygramSettingsEntries(settings: settings), style: .blocks, animateChanges: false)
         return (controllerState, (listState, arguments))
     }
-    
+
     let controller = ItemListController(context: context, state: signal)
     presentControllerImpl = { [weak controller] c in
         controller?.present(c, in: .window(.root))

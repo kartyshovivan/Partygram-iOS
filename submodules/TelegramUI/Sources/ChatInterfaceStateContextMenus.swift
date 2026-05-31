@@ -2224,7 +2224,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
                 c?.dismiss(completion: {
                     let presentationData = context.sharedContext.currentPresentationData.with { $0 }
                     let text = editHistory.reversed().map { entry -> String in
-                        let date = stringForMediumDate(timestamp: entry.date, strings: presentationData.strings, dateTimeFormat: presentationData.dateTimeFormat, withTime: true)
+                        let date = stringForMediumDate(timestamp: entry.date, strings: presentationData.strings, dateTimeFormat: presentationData.dateTimeFormat, withTime: true, withSeconds: context.sharedContext.immediateExperimentalUISettings.partygramShowSecondsInMessageTime)
                         return "\(date)\n\(entry.text)"
                     }.joined(separator: "\n\n")
                     controllerInteraction.presentController(textAlertController(

@@ -6,17 +6,16 @@ import Photos
 import TelegramUIPreferences
 import AccountContext
 
-private func appSpecificAssetCollection() -> Signal<PHAssetCollection, NoError> {
+private func appSpecificAssetCollection(albumName: String) -> Signal<PHAssetCollection, NoError> {
     return Signal { subscriber in
         let fetchOption = PHFetchOptions()
-        let albumName = "Telegram"
-        fetchOption.predicate = NSPredicate(format: "title == '" + albumName + "'")
-        
+        fetchOption.predicate = NSPredicate(format: "title == %@", albumName)
+
         let fetchResult = PHAssetCollection.fetchAssetCollections(
             with: .album,
             subtype: .albumRegular,
             options: fetchOption)
-        
+
         if let collection = fetchResult.firstObject {
             subscriber.putNext(collection)
             subscriber.putCompletion()
@@ -27,7 +26,7 @@ private func appSpecificAssetCollection() -> Signal<PHAssetCollection, NoError> 
                 if let error = error {
                     Logger.shared.log("appSpecificAssetCollection", "error: \(error)")
                 }
-                
+
                 if success {
                     let fetchResult = PHAssetCollection.fetchAssetCollections(
                         with: .album,
@@ -40,24 +39,46 @@ private func appSpecificAssetCollection() -> Signal<PHAssetCollection, NoError> 
                 }
             })
         }
-        
+
         return EmptyDisposable
+    }
+}
+
+private func partygramAttachmentsAlbumName(_ value: String) -> String {
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? "Saved Attachments" : trimmed
+}
+
+private func partygramAttachmentsMaxBytes(_ value: Int32) -> Int64? {
+    switch value {
+    case 0:
+        return 300 * 1024 * 1024
+    case 1:
+        return 1024 * 1024 * 1024
+    case 2:
+        return 2 * 1024 * 1024 * 1024
+    case 3:
+        return 5 * 1024 * 1024 * 1024
+    case 4:
+        return 16 * 1024 * 1024 * 1024
+    default:
+        return nil
     }
 }
 
 private final class DownloadedMediaStoreContext {
     private let queue: Queue
     private var disposable: Disposable?
-    
+
     init(queue: Queue) {
         self.queue = queue
     }
-    
+
     deinit {
         self.disposable?.dispose()
     }
-    
-    func start(postbox: Postbox, collection: Signal<PHAssetCollection, NoError>, peerId: EnginePeer.Id, timestamp: Int32, media: AnyMediaReference, completed: @escaping () -> Void) {
+
+    func start(postbox: Postbox, accountManager: AccountManager<TelegramAccountManagerTypes>, peerId: EnginePeer.Id, timestamp: Int32, media: AnyMediaReference, completed: @escaping () -> Void) {
         var resource: TelegramMediaResource?
         if let image = media.media as? TelegramMediaImage {
             resource = largestImageRepresentation(image.representations)?.resource
@@ -65,19 +86,49 @@ private final class DownloadedMediaStoreContext {
             resource = file.resource
         }
         if let resource = resource {
-            self.disposable = (postbox.transaction { transaction -> (MediaAutoSaveSettings, EnginePeer?, CachedPeerData?) in
+            self.disposable = (combineLatest(postbox.transaction { transaction -> (MediaAutoSaveSettings, EnginePeer?, CachedPeerData?) in
                 let peer = transaction.getPeer(peerId).flatMap(EnginePeer.init)
                 let cachedData = transaction.getPeerCachedData(peerId: peerId)
                 guard let entry = transaction.getPreferencesEntry(key: ApplicationSpecificPreferencesKeys.mediaAutoSaveSettings)?.get(MediaAutoSaveSettings.self) else {
                     return (.default, peer, cachedData)
                 }
                 return (entry, peer, cachedData)
-            }
-            |> map { storeSettings, peer, cachedData -> Bool in
+            }, accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.experimentalUISettings]) |> take(1))
+            |> map { storeData, sharedData -> (Bool, String) in
+                let (storeSettings, peer, cachedData) = storeData
+                let partygramSettings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? .defaultSettings
                 guard let peer = peer else {
-                    return false
+                    return (false, "Telegram")
                 }
-                
+
+                if partygramSettings.partygramSpySaveAttachments {
+                    switch peer {
+                    case .user:
+                        if let cachedUserData = cachedData as? CachedUserData, cachedUserData.flags.contains(.copyProtectionEnabled) || cachedUserData.flags.contains(.myCopyProtectionEnabled) {
+                            return (false, "Telegram")
+                        }
+                    case .secretChat:
+                        return (false, "Telegram")
+                    case let .channel(channel):
+                        if channel.flags.contains(.copyProtectionEnabled) {
+                            return (false, "Telegram")
+                        }
+                    case .legacyGroup:
+                        break
+                    }
+
+                    if let _ = media.media as? TelegramMediaImage {
+                        return (true, partygramAttachmentsAlbumName(partygramSettings.partygramSpyAttachmentsFolder))
+                    } else if let file = media.media as? TelegramMediaFile, file.isVideo {
+                        if let fileSize = file.size, let maxSize = partygramAttachmentsMaxBytes(partygramSettings.partygramSpyMaxFolderSize), fileSize > maxSize {
+                            return (false, "Telegram")
+                        }
+                        return (true, partygramAttachmentsAlbumName(partygramSettings.partygramSpyAttachmentsFolder))
+                    } else {
+                        return (false, "Telegram")
+                    }
+                }
+
                 let configuration: MediaAutoSaveConfiguration
                 if let exception = storeSettings.exceptions.first(where: { $0.id == peerId }) {
                     configuration = exception.configuration
@@ -90,14 +141,14 @@ private final class DownloadedMediaStoreContext {
                         }
                         peerTypeValue = .users
                     case .secretChat:
-                        return false
+                        return (false, "Telegram")
                     case .legacyGroup:
                         peerTypeValue = .groups
                     case let .channel(channel):
                         if channel.flags.contains(.copyProtectionEnabled) {
-                            return false
+                            return (false, "Telegram")
                         }
-                        
+
                         if case .broadcast = channel.info {
                             peerTypeValue = .channels
                         } else {
@@ -106,36 +157,35 @@ private final class DownloadedMediaStoreContext {
                     }
                     configuration = storeSettings.configurations[peerTypeValue] ?? .default
                 }
-                
+
                 if let _ = media.media as? TelegramMediaImage {
                     if configuration.photo {
-                        return true
+                        return (true, "Telegram")
                     } else {
-                        return false
+                        return (false, "Telegram")
                     }
                 } else if let file = media.media as? TelegramMediaFile {
                     if configuration.video, let fileSize = file.size, fileSize <= configuration.maximumVideoSize {
-                        return true
+                        return (true, "Telegram")
                     } else {
-                        return false
+                        return (false, "Telegram")
                     }
                 } else {
-                    return false
+                    return (false, "Telegram")
                 }
             }
-            |> take(1)
-            |> mapToSignal { store -> Signal<(PHAssetCollection, MediaResourceData), NoError> in
+            |> mapToSignal { store, albumName -> Signal<(PHAssetCollection, MediaResourceData), NoError> in
                 if !store {
                     return .complete()
                 } else {
-                    return combineLatest(collection |> take(1), postbox.mediaBox.resourceData(resource))
+                    return combineLatest(appSpecificAssetCollection(albumName: albumName) |> take(1), postbox.mediaBox.resourceData(resource))
                 }
             }
             |> deliverOn(queue)).startStrict(next: { collection, data in
                 if !data.complete {
                     return
                 }
-                
+
                 var filename: String?
                 if let image = media.media as? TelegramMediaImage {
                     filename = "telegram-photo-\(image.imageId.namespace)-\(image.imageId.id).jpg"
@@ -143,7 +193,7 @@ private final class DownloadedMediaStoreContext {
                     filename = "telegram-video-\(file.fileId.namespace)-\(file.fileId.id).mov"
                 }
                 let creationDate = Date(timeIntervalSince1970: TimeInterval(timestamp))
-                
+
                 let storeAsset: () -> Void = {
                     if let _ = media.media as? TelegramMediaImage {
                         PHPhotoLibrary.shared().performChanges({
@@ -163,7 +213,7 @@ private final class DownloadedMediaStoreContext {
                         })
                     } else if let file = media.media as? TelegramMediaFile, file.isVideo {
                         let tempFile = TempBox.shared.tempFile(fileName: filename ?? "file.mov")
-                        
+
                         PHPhotoLibrary.shared().performChanges({
                             if let _ = try? FileManager.default.copyItem(atPath: data.path, toPath: tempFile.path) {
                                 let creationRequest = PHAssetCreationRequest.forAsset()
@@ -186,12 +236,12 @@ private final class DownloadedMediaStoreContext {
                         })
                     }
                 }
-                
+
                 let options = PHFetchOptions()
                 if #available(iOSApplicationExtension 9.0, iOS 9.0, *) {
                     options.fetchLimit = 11
                 }
-                
+
                 options.predicate = NSPredicate(format: "creationDate == %@", creationDate as CVarArg)
                 var alreadyStored = false
                 let assets = PHAsset.fetchAssets(in: collection, options: options)
@@ -205,11 +255,11 @@ private final class DownloadedMediaStoreContext {
                         }
                     }
                 })
-                
+
                 if !alreadyStored {
                     storeAsset()
                 }
-                
+
                 completed()
             })
         } else {
@@ -221,18 +271,18 @@ private final class DownloadedMediaStoreContext {
 private final class DownloadedMediaStoreManagerPrivateImpl {
     private let queue: Queue
     private let postbox: Postbox
-    
+
     private var nextId: Int32 = 1
     private var storeContexts: [MediaId: DownloadedMediaStoreContext] = [:]
-    
-    private let appSpecificAssetCollectionValue: Promise<PHAssetCollection>
+
     private let storeSettings = Promise<MediaAutoDownloadSettings>()
-    
+    private let accountManager: AccountManager<TelegramAccountManagerTypes>
+
     init(queue: Queue, postbox: Postbox, accountManager: AccountManager<TelegramAccountManagerTypes>) {
         self.queue = queue
         self.postbox = postbox
-        
-        self.appSpecificAssetCollectionValue = Promise(initializeOnFirstAccess: appSpecificAssetCollection())
+        self.accountManager = accountManager
+
         self.storeSettings.set(accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.automaticMediaDownloadSettings])
         |> map { sharedData -> MediaAutoDownloadSettings in
             if let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.automaticMediaDownloadSettings]?.get(MediaAutoDownloadSettings.self) {
@@ -242,17 +292,17 @@ private final class DownloadedMediaStoreManagerPrivateImpl {
             }
         })
     }
-    
+
     deinit {
         assert(self.queue.isCurrent())
     }
-    
+
     private func takeNextId() -> Int32 {
         let nextId = self.nextId
         self.nextId += 1
         return nextId
     }
-    
+
     func store(_ media: AnyMediaReference, timestamp: Int32, peerId: EnginePeer.Id) {
         guard let id = media.media.id else {
             return
@@ -260,8 +310,7 @@ private final class DownloadedMediaStoreManagerPrivateImpl {
         if self.storeContexts[id] == nil {
             let context = DownloadedMediaStoreContext(queue: self.queue)
             self.storeContexts[id] = context
-            let appSpecificAssetCollectionValue = self.appSpecificAssetCollectionValue
-            context.start(postbox: self.postbox, collection: deferred { appSpecificAssetCollectionValue.get() }, peerId: peerId, timestamp: timestamp, media: media, completed: { [weak self, weak context] in
+            context.start(postbox: self.postbox, accountManager: self.accountManager, peerId: peerId, timestamp: timestamp, media: media, completed: { [weak self, weak context] in
                 guard let strongSelf = self, let context = context else {
                     return
                 }
@@ -278,7 +327,7 @@ final class DownloadedMediaStoreManagerImpl: DownloadedMediaStoreManager {
     private let queue = Queue()
     private let postbox: Postbox
     private let impl: QueueLocalObject<DownloadedMediaStoreManagerPrivateImpl>
-    
+
     init(postbox: Postbox, accountManager: AccountManager<TelegramAccountManagerTypes>) {
         let queue = self.queue
         self.postbox = postbox
@@ -286,13 +335,13 @@ final class DownloadedMediaStoreManagerImpl: DownloadedMediaStoreManager {
             return DownloadedMediaStoreManagerPrivateImpl(queue: queue, postbox: postbox, accountManager: accountManager)
         })
     }
-    
+
     func store(_ media: AnyMediaReference, timestamp: Int32, peerId: EnginePeer.Id) {
         self.impl.with { impl in
             impl.store(media, timestamp: timestamp, peerId: peerId)
         }
     }
-    
+
     func runTasks() {
         let _ = (self.postbox.transaction({ transaction -> [(index: Int32, message: Message, mediaId: MediaId)] in
             return _internal_getSynchronizeAutosaveItemOperations(transaction: transaction)
@@ -309,7 +358,7 @@ final class DownloadedMediaStoreManagerImpl: DownloadedMediaStoreManager {
                     }
                 }
             }
-            
+
             let _ = self.postbox.transaction({ transaction -> Void in
                 return _internal_removeSyncrhonizeAutosaveItemOperations(transaction: transaction, indices: items.map(\.index))
             }).startStandalone()

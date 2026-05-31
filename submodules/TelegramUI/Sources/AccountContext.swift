@@ -28,10 +28,10 @@ import DirectMediaImageCache
 private final class DeviceSpecificContactImportContext {
     let disposable = MetaDisposable()
     var reference: DeviceContactBasicDataWithReference?
-    
+
     init() {
     }
-    
+
     deinit {
         self.disposable.dispose()
     }
@@ -39,22 +39,22 @@ private final class DeviceSpecificContactImportContext {
 
 private final class DeviceSpecificContactImportContexts {
     private let queue: Queue
-    
+
     private var contexts: [PeerId: DeviceSpecificContactImportContext] = [:]
-    
+
     init(queue: Queue) {
         self.queue = queue
     }
-    
+
     deinit {
         assert(self.queue.isCurrent())
     }
-    
+
     func update(account: Account, deviceContactDataManager: DeviceContactDataManager, references: [PeerId: DeviceContactBasicDataWithReference]) {
         var validIds = Set<PeerId>()
         for (peerId, reference) in references {
             validIds.insert(peerId)
-            
+
             let context: DeviceSpecificContactImportContext
             if let current = self.contexts[peerId] {
                 context = current
@@ -64,7 +64,7 @@ private final class DeviceSpecificContactImportContexts {
             }
             if context.reference != reference {
                 context.reference = reference
-                
+
                 let signal = TelegramEngine(account: account).data.subscribe(TelegramEngine.EngineData.Item.Peer.Peer(id: peerId))
                 |> map { peer -> String? in
                     if case let .user(user) = peer {
@@ -96,7 +96,7 @@ private final class DeviceSpecificContactImportContexts {
                 context.disposable.set(signal.start())
             }
         }
-        
+
         var removeIds: [PeerId] = []
         for peerId in self.contexts.keys {
             if !validIds.contains(peerId) {
@@ -130,6 +130,26 @@ private func updatePartygramGhostLastOnlineTimestamp(accountManager: AccountMana
     }).startStandalone()
 }
 
+private func updatePartygramSavedLastOnlineTimestamps(accountManager: AccountManager<TelegramAccountManagerTypes>, timestamps: [String: Int32]) {
+    guard !timestamps.isEmpty else {
+        return
+    }
+    let _ = updateExperimentalUISettingsInteractively(accountManager: accountManager, { settings in
+        guard settings.partygramSpySaveLastOnline else {
+            return settings
+        }
+        var updatedSettings = settings
+        var updated = false
+        for (key, timestamp) in timestamps {
+            if timestamp > (updatedSettings.partygramSavedLastOnlineTimestamps[key] ?? 0) {
+                updatedSettings.partygramSavedLastOnlineTimestamps[key] = timestamp
+                updated = true
+            }
+        }
+        return updated ? updatedSettings : settings
+    }).startStandalone()
+}
+
 public final class AccountContextImpl: AccountContext {
     public let sharedContextImpl: SharedAccountContextImpl
     public var sharedContext: SharedAccountContext {
@@ -137,14 +157,14 @@ public final class AccountContextImpl: AccountContext {
     }
     public let account: Account
     public let engine: TelegramEngine
-    
+
     public let fetchManager: FetchManager
     public let prefetchManager: PrefetchManager?
-    
+
     public var keyShortcutsController: KeyShortcutsController?
-    
+
     public let downloadedMediaStoreManager: DownloadedMediaStoreManager
-    
+
     public let liveLocationManager: LiveLocationManager?
     public let wallpaperUploadManager: WallpaperUploadManager?
     private let themeUpdateManager: ThemeUpdateManager?
@@ -152,60 +172,61 @@ public final class AccountContextImpl: AccountContext {
     public let starsContext: StarsContext?
     public let tonContext: StarsContext?
     public let giftAuctionsManager: GiftAuctionsManager?
-    
+
     public let peerChannelMemberCategoriesContextsManager = PeerChannelMemberCategoriesContextsManager()
-    
+
     public let currentLimitsConfiguration: Atomic<LimitsConfiguration>
     private let _limitsConfiguration = Promise<LimitsConfiguration>()
     public var limitsConfiguration: Signal<LimitsConfiguration, NoError> {
         return self._limitsConfiguration.get()
     }
-    
+
     public var currentContentSettings: Atomic<ContentSettings>
     private let _contentSettings = Promise<ContentSettings>()
     public var contentSettings: Signal<ContentSettings, NoError> {
         return self._contentSettings.get()
     }
-    
+
     public var currentAppConfiguration: Atomic<AppConfiguration>
     private let _appConfiguration = Promise<AppConfiguration>()
     public var appConfiguration: Signal<AppConfiguration, NoError> {
         return self._appConfiguration.get()
     }
-    
+
     public var currentCountriesConfiguration: Atomic<CountriesConfiguration>
     private let _countriesConfiguration = Promise<CountriesConfiguration>()
     public var countriesConfiguration: Signal<CountriesConfiguration, NoError> {
         return self._countriesConfiguration.get()
     }
-    
+
     private var storedPassword: (String, CFAbsoluteTime, SwiftSignalKit.Timer)?
     private var limitsConfigurationDisposable: Disposable?
     private var contentSettingsDisposable: Disposable?
     private var appConfigurationDisposable: Disposable?
     private var countriesConfigurationDisposable: Disposable?
-    
+
     private let deviceSpecificContactImportContexts: QueueLocalObject<DeviceSpecificContactImportContexts>
     private var managedAppSpecificContactsDisposable: Disposable?
-    
+
     private var experimentalUISettingsDisposable: Disposable?
     private var partygramAccountPresenceSettingsDisposable: Disposable?
     private var partygramLocalOnlinePresenceDisposable: Disposable?
+    private var partygramSavedLastOnlineDisposable: Disposable?
     private var partygramLocalOnlinePresenceTimer: SwiftSignalKit.Timer?
     private var partygramSuppressOnlinePresence = false
-    
+
     public let cachedGroupCallContexts: AccountGroupCallContextCache
-    
+
     public let animationCache: AnimationCache
     public let animationRenderer: MultiAnimationRenderer
-    
+
     private var animatedEmojiStickersDisposable: Disposable?
     public private(set) var animatedEmojiStickersValue: [String: [StickerPackItem]] = [:]
     private let animatedEmojiStickersPromise = Promise<[String: [StickerPackItem]]>()
     public var animatedEmojiStickers: Signal<[String: [StickerPackItem]], NoError> {
         return self.animatedEmojiStickersPromise.get()
     }
-    
+
     private var additionalAnimatedEmojiStickersPromise: Promise<[String: [Int: StickerPackItem]]>?
     public var additionalAnimatedEmojiStickers: Signal<[String: [Int: StickerPackItem]], NoError> {
         let additionalAnimatedEmojiStickersPromise: Promise<[String: [Int: StickerPackItem]]>
@@ -235,7 +256,7 @@ public final class AccountContextImpl: AccountContext {
                                 emoji = nil
                                 indexEmoji = nil
                             }
-                            
+
                             if let emoji = emoji?.strippedEmoji, let indexEmoji = indexEmoji?.strippedEmoji.first, let strIndex = sequence.firstIndex(of: indexEmoji) {
                                 let index = sequence.distance(from: sequence.startIndex, to: strIndex)
                                 if animatedEmojiStickers[emoji] != nil {
@@ -254,7 +275,7 @@ public final class AccountContextImpl: AccountContext {
         }
         return additionalAnimatedEmojiStickersPromise.get()
     }
-    
+
     private var availableReactionsValue: Promise<AvailableReactions?>?
     public var availableReactions: Signal<AvailableReactions?, NoError> {
         let availableReactionsValue: Promise<AvailableReactions?>
@@ -267,7 +288,7 @@ public final class AccountContextImpl: AccountContext {
         }
         return availableReactionsValue.get()
     }
-    
+
     private var availableMessageEffectsValue: Promise<AvailableMessageEffects?>?
     public var availableMessageEffects: Signal<AvailableMessageEffects?, NoError> {
         let availableMessageEffectsValue: Promise<AvailableMessageEffects?>
@@ -280,39 +301,39 @@ public final class AccountContextImpl: AccountContext {
         }
         return availableMessageEffectsValue.get()
     }
-    
+
     private var userLimitsConfigurationDisposable: Disposable?
     public private(set) var userLimits: EngineConfiguration.UserLimits
-    
+
     private var peerNameColorsConfigurationDisposable: Disposable?
     public private(set) var peerNameColors: PeerNameColors
-    
+
     private var audioTranscriptionTrialDisposable: Disposable?
     public private(set) var audioTranscriptionTrial: AudioTranscription.TrialState
-    
+
     public private(set) var isPremium: Bool
-    
+
     private var isFrozenDisposable: Disposable?
     public private(set) var isFrozen: Bool
-    
+
     public let imageCache: AnyObject?
-    
+
     public init(sharedContext: SharedAccountContextImpl, account: Account, limitsConfiguration: LimitsConfiguration, contentSettings: ContentSettings, appConfiguration: AppConfiguration, availableReplyColors: EngineAvailableColorOptions, availableProfileColors: EngineAvailableColorOptions, temp: Bool = false)
     {
         self.sharedContextImpl = sharedContext
         self.account = account
         self.engine = TelegramEngine(account: account)
-        
+
         self.imageCache = DirectMediaImageCache(account: account)
-        
+
         self.userLimits = EngineConfiguration.UserLimits(UserLimitsConfiguration.defaultValue)
         self.peerNameColors = PeerNameColors.with(availableReplyColors: availableReplyColors, availableProfileColors: availableProfileColors)
         self.audioTranscriptionTrial = AudioTranscription.TrialState.defaultValue
         self.isPremium = false
         self.isFrozen = false
-        
+
         self.downloadedMediaStoreManager = DownloadedMediaStoreManagerImpl(postbox: account.postbox, accountManager: sharedContext.accountManager)
-        
+
         if let locationManager = self.sharedContextImpl.locationManager {
             self.liveLocationManager = LiveLocationManagerImpl(engine: self.engine, locationManager: locationManager, inForeground: sharedContext.applicationBindings.applicationInForeground)
         } else {
@@ -323,7 +344,7 @@ public final class AccountContextImpl: AccountContext {
             self.prefetchManager = PrefetchManagerImpl(sharedContext: sharedContext, account: account, engine: self.engine, fetchManager: self.fetchManager)
             self.wallpaperUploadManager = WallpaperUploadManagerImpl(sharedContext: sharedContext, account: account, presentationData: sharedContext.presentationData)
             self.themeUpdateManager = ThemeUpdateManagerImpl(sharedContext: sharedContext, account: account)
-            
+
             self.inAppPurchaseManager = InAppPurchaseManager(engine: .authorized(self.engine))
             self.starsContext = self.engine.payments.peerStarsContext()
             self.tonContext = self.engine.payments.peerTonContext()
@@ -337,12 +358,12 @@ public final class AccountContextImpl: AccountContext {
             self.tonContext = nil
             self.giftAuctionsManager = nil
         }
-        
+
         self.account.stateManager.starsContext = self.starsContext
         self.account.stateManager.tonContext = self.starsContext
-                
+
         self.cachedGroupCallContexts = AccountGroupCallContextCacheImpl()
-        
+
         let cacheStorageBox = self.account.postbox.mediaBox.cacheStorageBox
         self.animationCache = DCTAnimationCacheImpl(basePath: self.account.postbox.mediaBox.basePath + "/animation-cache", allocateTempFile: {
             return TempBox.shared.tempFile(fileName: "file").path
@@ -353,48 +374,48 @@ public final class AccountContextImpl: AccountContext {
         })
         self.animationRenderer = DCTMultiAnimationRendererImpl()
         (self.animationRenderer as? DCTMultiAnimationRendererImpl)?.useYuvA = sharedContext.immediateExperimentalUISettings.compressedEmojiCache
-        
+
         let updatedLimitsConfiguration = self.engine.data.subscribe(TelegramEngine.EngineData.Item.Configuration.ApplicationSpecificPreference(key: PreferencesKeys.limitsConfiguration))
         |> map { preferences -> LimitsConfiguration in
             return preferences?.get(LimitsConfiguration.self) ?? LimitsConfiguration.defaultValue
         }
-        
+
         self.currentLimitsConfiguration = Atomic(value: limitsConfiguration)
         self._limitsConfiguration.set(.single(limitsConfiguration) |> then(updatedLimitsConfiguration))
-        
+
         let currentLimitsConfiguration = self.currentLimitsConfiguration
         self.limitsConfigurationDisposable = (self._limitsConfiguration.get()
         |> deliverOnMainQueue).start(next: { value in
             let _ = currentLimitsConfiguration.swap(value)
         })
-        
+
         let updatedContentSettings = getContentSettings(postbox: account.postbox)
         self.currentContentSettings = Atomic(value: contentSettings)
         self._contentSettings.set(.single(contentSettings) |> then(updatedContentSettings))
-        
+
         let currentContentSettings = self.currentContentSettings
         self.contentSettingsDisposable = (self._contentSettings.get()
         |> deliverOnMainQueue).start(next: { value in
             let _ = currentContentSettings.swap(value)
         })
-        
+
         let updatedAppConfiguration = getAppConfiguration(engine: self.engine)
         self.currentAppConfiguration = Atomic(value: appConfiguration)
         self._appConfiguration.set(.single(appConfiguration) |> then(updatedAppConfiguration))
-                
+
         let currentAppConfiguration = self.currentAppConfiguration
         self.appConfigurationDisposable = (self._appConfiguration.get()
         |> deliverOnMainQueue).start(next: { value in
             let _ = currentAppConfiguration.swap(value)
-            
+
             guard let data = appConfiguration.data else {
                 return
             }
-            
+
             if data["ios_killswitch_contact_diffing"] != nil {
                 sharedDisableDeviceContactDataDiffing = true
             }
-            
+
             if let url = data["ios_update_url"] as? String, !url.isEmpty {
                 let _ = (sharedContext.accountManager.transaction { transaction -> Void in
                     transaction.updateSharedData(ApplicationSpecificSharedDataKeys.updateSettings, { _ in
@@ -403,12 +424,12 @@ public final class AccountContextImpl: AccountContext {
                 }).start()
             }
         })
-                
+
         let queue = Queue()
         self.deviceSpecificContactImportContexts = QueueLocalObject(queue: queue, generate: {
             return DeviceSpecificContactImportContexts(queue: queue)
         })
-        
+
         let langCode = sharedContext.currentPresentationData.with { $0 }.strings.baseLanguageCode
         self.currentCountriesConfiguration = Atomic(value: CountriesConfiguration(countries: loadCountryCodes()))
         if !temp {
@@ -420,7 +441,7 @@ public final class AccountContextImpl: AccountContext {
                 self?._countriesConfiguration.set(.single(configuration))
             })
         }
-        
+
         if let contactDataManager = sharedContext.contactDataManager {
             let deviceSpecificContactImportContexts = self.deviceSpecificContactImportContexts
             self.managedAppSpecificContactsDisposable = (contactDataManager.appSpecificReferences()
@@ -430,11 +451,11 @@ public final class AccountContextImpl: AccountContext {
                 }
             })
         }
-        
+
         account.callSessionManager.updateVersions(versions: PresentationCallManagerImpl.voipVersions(includeExperimental: true, includeReference: true).map { version, supportsVideo -> CallSessionManagerImplementationVersion in
             CallSessionManagerImplementationVersion(version: version, supportsVideo: supportsVideo)
         })
-        
+
         self.animatedEmojiStickersDisposable = (self.engine.stickers.loadedStickerPack(reference: .animatedEmoji, forceActualized: false)
         |> map { animatedEmoji -> [String: [StickerPackItem]] in
             var animatedEmojiStickers: [String: [StickerPackItem]] = [:]
@@ -461,7 +482,7 @@ public final class AccountContextImpl: AccountContext {
             strongSelf.animatedEmojiStickersValue = stickers
             strongSelf.animatedEmojiStickersPromise.set(.single(stickers))
         })
-        
+
         self.userLimitsConfigurationDisposable = (self.engine.data.subscribe(TelegramEngine.EngineData.Item.Peer.Peer(id: account.peerId))
         |> mapToSignal { peer -> Signal<(Bool, EngineConfiguration.UserLimits), NoError> in
             let isPremium = peer?.isPremium ?? false
@@ -477,7 +498,7 @@ public final class AccountContextImpl: AccountContext {
             self.isPremium = isPremium
             self.userLimits = userLimits
         })
-        
+
         self.peerNameColorsConfigurationDisposable = (combineLatest(
             self.engine.accountData.observeAvailableColorOptions(scope: .replies),
             self.engine.accountData.observeAvailableColorOptions(scope: .profile)
@@ -488,7 +509,7 @@ public final class AccountContextImpl: AccountContext {
             }
             self.peerNameColors = PeerNameColors.with(availableReplyColors: availableReplyColors, availableProfileColors: availableProfileColors)
         })
-        
+
         self.audioTranscriptionTrialDisposable = (self.engine.data.subscribe(TelegramEngine.EngineData.Item.Peer.Peer(id: account.peerId))
         |> mapToSignal { peer -> Signal<AudioTranscription.TrialState, NoError> in
             let isPremium = peer?.isPremium ?? false
@@ -504,7 +525,7 @@ public final class AccountContextImpl: AccountContext {
             }
             self.audioTranscriptionTrial = audioTranscriptionTrial
         })
-        
+
         self.isFrozenDisposable = (self.appConfiguration
         |> map { appConfiguration in
             return AccountFreezeConfiguration.with(appConfiguration: appConfiguration).freezeUntilDate != nil
@@ -516,7 +537,7 @@ public final class AccountContextImpl: AccountContext {
             }
             self.isFrozen = isFrozen
         })
-        
+
         let initialExperimentalUISettings = sharedContext.immediateExperimentalUISettings
         self.partygramSuppressOnlinePresence = partygramShouldSuppressOnlinePresence(initialExperimentalUISettings)
         account.setShouldSuppressLocalInputActivities(partygramShouldSuppressTypingActivity(initialExperimentalUISettings))
@@ -561,6 +582,42 @@ public final class AccountContextImpl: AccountContext {
             let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? .defaultSettings
             self.updatePartygramLocalOnlinePresenceTimer(isActive: shouldKeepOnlinePresence && partygramShouldSuppressOnlinePresence(settings), settings: settings)
         })
+
+        self.partygramSavedLastOnlineDisposable = (combineLatest(
+            sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.experimentalUISettings]),
+            self.engine.data.subscribe(TelegramEngine.EngineData.Item.Contacts.List(includePresences: true))
+        )
+        |> deliverOnMainQueue).start(next: { [weak self] sharedData, contactList in
+            guard let self else {
+                return
+            }
+            let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? .defaultSettings
+            guard settings.partygramSpySaveLastOnline else {
+                return
+            }
+
+            let now = Int32(Date().timeIntervalSince1970)
+            let onlineTimestamp = now - (now % 30)
+            var timestamps: [String: Int32] = [:]
+            for (peerId, presence) in contactList.presences {
+                if peerId == self.account.peerId {
+                    continue
+                }
+
+                let timestamp: Int32?
+                switch presence.status {
+                case .present(_):
+                    timestamp = onlineTimestamp
+                default:
+                    timestamp = presence.lastActivity > 0 ? presence.lastActivity : nil
+                }
+
+                if let timestamp = timestamp, timestamp > 0 {
+                    timestamps["\(peerId.toInt64())"] = timestamp
+                }
+            }
+            updatePartygramSavedLastOnlineTimestamps(accountManager: self.sharedContext.accountManager, timestamps: timestamps)
+        })
     }
 
     private func updatePartygramLocalOnlinePresenceTimer(isActive: Bool, settings: ExperimentalUISettings? = nil) {
@@ -590,7 +647,7 @@ public final class AccountContextImpl: AccountContext {
         }
         updatePartygramGhostLastOnlineTimestamp(accountManager: self.sharedContext.accountManager, timestamp: timestamp)
     }
-    
+
     deinit {
         self.limitsConfigurationDisposable?.dispose()
         self.managedAppSpecificContactsDisposable?.dispose()
@@ -600,13 +657,14 @@ public final class AccountContextImpl: AccountContext {
         self.experimentalUISettingsDisposable?.dispose()
         self.partygramAccountPresenceSettingsDisposable?.dispose()
         self.partygramLocalOnlinePresenceDisposable?.dispose()
+        self.partygramSavedLastOnlineDisposable?.dispose()
         self.partygramLocalOnlinePresenceTimer?.invalidate()
         self.animatedEmojiStickersDisposable?.dispose()
         self.userLimitsConfigurationDisposable?.dispose()
         self.peerNameColorsConfigurationDisposable?.dispose()
         self.isFrozenDisposable?.dispose()
     }
-    
+
     public func storeSecureIdPassword(password: String) {
         self.storedPassword?.2.invalidate()
         let timer = SwiftSignalKit.Timer(timeout: 1.0 * 60.0 * 60.0, repeat: false, completion: { [weak self] in
@@ -615,7 +673,7 @@ public final class AccountContextImpl: AccountContext {
         self.storedPassword = (password, CFAbsoluteTimeGetCurrent(), timer)
         timer.start()
     }
-    
+
     public func getStoredSecureIdPassword() -> String? {
         if let (password, timestamp, timer) = self.storedPassword {
             if CFAbsoluteTimeGetCurrent() > timestamp + 1.0 * 60.0 * 60.0 {
@@ -627,7 +685,7 @@ public final class AccountContextImpl: AccountContext {
             return nil
         }
     }
-    
+
     public func chatLocationInput(for location: ChatLocation, contextHolder: Atomic<ChatLocationContextHolder?>) -> ChatLocationInput {
         switch location {
         case let .peer(peerId):
@@ -643,7 +701,7 @@ public final class AccountContextImpl: AccountContext {
             preconditionFailure()
         }
     }
-    
+
     public func chatLocationOutgoingReadState(for location: ChatLocation, contextHolder: Atomic<ChatLocationContextHolder?>) -> Signal<MessageId?, NoError> {
         switch location {
         case .peer:
@@ -677,13 +735,13 @@ public final class AccountContextImpl: AccountContext {
             return self.account.postbox.combinedView(keys: [unreadCountsKey])
             |> map { views in
                 var unreadCount: Int32 = 0
-                
+
                 if let view = views.views[unreadCountsKey] as? UnreadMessageCountsView {
                     if let count = view.count(for: .peer(id: peerId, handleThreads: false)) {
                         unreadCount = count
                     }
                 }
-                
+
                 return Int(unreadCount)
             }
         case let .replyThread(data):
@@ -707,7 +765,7 @@ public final class AccountContextImpl: AccountContext {
             return .single(0)
         }
     }
-    
+
     public func applyMaxReadIndex(for location: ChatLocation, contextHolder: Atomic<ChatLocationContextHolder?>, messageIndex: MessageIndex) {
         switch location {
         case .peer:
@@ -719,11 +777,11 @@ public final class AccountContextImpl: AccountContext {
             break
         }
     }
-    
+
     public func scheduleGroupCall(peerId: PeerId, parentController: ViewController) {
         let _ = self.sharedContext.callManager?.scheduleGroupCall(context: self, peerId: peerId, endCurrentIfAny: true, parentController: parentController)
     }
-    
+
     public func joinGroupCall(peerId: PeerId, invite: String?, requestJoinAsPeerId: ((@escaping (PeerId?) -> Void) -> Void)?, activeCall: EngineGroupCallDescription) {
         let callResult = self.sharedContext.callManager?.joinGroupCall(context: self, peerId: peerId, invite: invite, requestJoinAsPeerId: requestJoinAsPeerId, initialCall: activeCall, endCurrentIfAny: false)
         if let callResult = callResult, case let .alreadyInProgress(currentCallType) = callResult {
@@ -744,7 +802,7 @@ public final class AccountContextImpl: AccountContext {
                         return (peer, nil)
                     }
                 }
-                
+
                 let _ = (dataInput
                 |> deliverOnMainQueue).start(next: { [weak self] peer, current in
                     guard let strongSelf = self else {
@@ -795,7 +853,7 @@ public final class AccountContextImpl: AccountContext {
             }
         }
     }
-    
+
     public func joinConferenceCall(call: JoinCallLinkInformation, isVideo: Bool, unmuteByDefault: Bool) {
         guard let callManager = self.sharedContext.callManager else {
             return
@@ -825,7 +883,7 @@ public final class AccountContextImpl: AccountContext {
             } else {
                 dataInput = .single(nil)
             }
-            
+
             let _ = (dataInput
             |> deliverOnMainQueue).start(next: { [weak self] current in
                 guard let strongSelf = self else {
@@ -922,12 +980,12 @@ public final class AccountContextImpl: AccountContext {
             })
         }
     }
-    
+
     public func requestCall(peerId: PeerId, isVideo: Bool, completion: @escaping () -> Void) {
         guard let callResult = self.sharedContext.callManager?.requestCall(context: self, peerId: peerId, isVideo: isVideo, endCurrentIfAny: false) else {
             return
         }
-        
+
         if case let .alreadyInProgress(currentCallType) = callResult {
             if case let .peer(currentPeerId) = currentCallType, currentPeerId == peerId {
                 completion()
@@ -947,7 +1005,7 @@ public final class AccountContextImpl: AccountContext {
                         return (peer, nil)
                     }
                 }
-                
+
                 let _ = (dataInput
                 |> deliverOnMainQueue).start(next: { [weak self] peer, current in
                     guard let strongSelf = self else {
@@ -1007,7 +1065,7 @@ private func chatLocationContext(holder: Atomic<ChatLocationContextHolder?>, acc
 
 private final class ChatLocationReplyContextHolderImpl: ChatLocationContextHolder {
     let context: ReplyThreadHistoryContext
-    
+
     init(account: Account, data: ChatReplyThreadMessage) {
         self.context = ReplyThreadHistoryContext(account: account, peerId: data.peerId, data: data)
     }
@@ -1032,38 +1090,38 @@ private func loadCountryCodes() -> [Country] {
     guard let data = String(data: stringData, encoding: .utf8) else {
         return []
     }
-    
+
     let delimiter = ";"
     let endOfLine = "\n"
-    
+
     var result: [Country] = []
 //    var countriesByPrefix: [String: (Country, Country.CountryCode)] = [:]
-    
+
     var currentLocation = data.startIndex
-    
+
     let locale = Locale(identifier: "en-US")
-    
+
     while true {
         guard let codeRange = data.range(of: delimiter, options: [], range: currentLocation ..< data.endIndex) else {
             break
         }
-        
+
         let countryCode = String(data[currentLocation ..< codeRange.lowerBound])
-        
+
         guard let idRange = data.range(of: delimiter, options: [], range: codeRange.upperBound ..< data.endIndex) else {
             break
         }
-        
+
         let countryId = String(data[codeRange.upperBound ..< idRange.lowerBound])
-        
+
         guard let patternRange = data.range(of: delimiter, options: [], range: idRange.upperBound ..< data.endIndex) else {
             break
         }
-        
+
         let pattern = String(data[idRange.upperBound ..< patternRange.lowerBound])
-        
+
         let maybeNameRange = data.range(of: endOfLine, options: [], range: patternRange.upperBound ..< data.endIndex)
-        
+
         let countryName = locale.localizedString(forIdentifier: countryId) ?? ""
         if let _ = Int(countryCode) {
             let code = Country.CountryCode(code: countryCode, prefixes: [], patterns: !pattern.isEmpty ? [pattern] : [])
@@ -1071,13 +1129,13 @@ private func loadCountryCodes() -> [Country] {
             result.append(country)
 //            countriesByPrefix["\(code.code)"] = (country, code)
         }
-        
+
         if let maybeNameRange = maybeNameRange {
             currentLocation = maybeNameRange.upperBound
         } else {
             break
         }
     }
-        
+
     return result
 }
