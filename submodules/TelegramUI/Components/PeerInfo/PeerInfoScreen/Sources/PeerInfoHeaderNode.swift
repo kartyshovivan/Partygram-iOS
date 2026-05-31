@@ -80,6 +80,26 @@ protocol PeerInfoHeaderTextFieldNode: ASDisplayNode {
     func update(width: CGFloat, safeInset: CGFloat, isSettings: Bool, hasPrevious: Bool, hasNext: Bool, placeholder: String, isEnabled: Bool, presentationData: PresentationData, updateText: String?) -> CGFloat
 }
 
+private func partygramShouldDisplayOwnGhostActivity(_ settings: ExperimentalUISettings) -> Bool {
+    return settings.partygramGhostMode && settings.partygramGhostDontSendOnline
+}
+
+private func updatePartygramProfileGhostLastOnlineTimestamp(context: AccountContext, timestamp: Int32) {
+    guard timestamp > 0 else {
+        return
+    }
+    let _ = updateExperimentalUISettingsInteractively(accountManager: context.sharedContext.accountManager, { settings in
+        guard partygramShouldDisplayOwnGhostActivity(settings) else {
+            return settings
+        }
+        var settings = settings
+        if settings.partygramGhostLastOnlineTimestamp < timestamp {
+            settings.partygramGhostLastOnlineTimestamp = timestamp
+        }
+        return settings
+    }).startStandalone()
+}
+
 private let TitleNodeStateRegular = 0
 private let TitleNodeStateExpanded = 1
 
@@ -206,6 +226,10 @@ final class PeerInfoHeaderNode: ASDisplayNode {
     
     private var currentStarRating: TelegramStarRating?
     private var currentPendingStarRating: TelegramStarPendingRating?
+    private var partygramProfileOnlinePresenceDisposable: Disposable?
+    private var partygramProfileOnlinePresenceTimer: SwiftSignalKit.Timer?
+    private var partygramProfileOnlinePresenceActive = false
+    private var partygramProfileOnlineDisplayTimestamp: Int32?
     
     init(context: AccountContext, controller: PeerInfoScreenImpl, avatarInitiallyExpanded: Bool, isOpenedFromChat: Bool, isMediaOnly: Bool, isSettings: Bool, isMyProfile: Bool, forumTopicThreadId: Int64?, chatLocation: ChatLocation) {
         self.context = context
@@ -379,10 +403,60 @@ final class PeerInfoHeaderNode: ASDisplayNode {
 
             strongSelf.animateOverlaysFadeIn?()
         }
+
+        if self.isMyProfile {
+            self.partygramProfileOnlinePresenceDisposable = (combineLatest(context.account.shouldKeepOnlinePresence.get(), context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.experimentalUISettings]))
+            |> deliverOnMainQueue).start(next: { [weak self] shouldKeepOnlinePresence, sharedData in
+                guard let self else {
+                    return
+                }
+                let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? .defaultSettings
+                self.updatePartygramProfileOnlinePresenceTimer(isActive: shouldKeepOnlinePresence && partygramShouldDisplayOwnGhostActivity(settings), settings: settings)
+            })
+        }
     }
     
     deinit {
         self.emojiStatusPackDisposable.dispose()
+        self.partygramProfileOnlinePresenceDisposable?.dispose()
+        self.partygramProfileOnlinePresenceTimer?.invalidate()
+    }
+
+    private func updatePartygramProfileOnlinePresenceTimer(isActive: Bool, settings: ExperimentalUISettings? = nil) {
+        let wasActive = self.partygramProfileOnlinePresenceActive
+        self.partygramProfileOnlinePresenceActive = isActive
+
+        if isActive {
+            if !wasActive {
+                self.updatePartygramProfileOnlinePresenceTimestamp(settings: settings)
+            }
+            if self.partygramProfileOnlinePresenceTimer == nil {
+                let timer = SwiftSignalKit.Timer(timeout: 1.0, repeat: true, completion: { [weak self] in
+                    self?.updatePartygramProfileOnlinePresenceTimestamp()
+                }, queue: Queue.mainQueue())
+                self.partygramProfileOnlinePresenceTimer = timer
+                timer.start()
+            }
+        } else {
+            self.partygramProfileOnlinePresenceTimer?.invalidate()
+            self.partygramProfileOnlinePresenceTimer = nil
+            if self.partygramProfileOnlineDisplayTimestamp != nil {
+                self.partygramProfileOnlineDisplayTimestamp = nil
+                self.requestUpdateLayout?(false)
+            }
+        }
+    }
+
+    private func updatePartygramProfileOnlinePresenceTimestamp(settings: ExperimentalUISettings? = nil) {
+        let settings = settings ?? self.context.sharedContext.immediateExperimentalUISettings
+        guard partygramShouldDisplayOwnGhostActivity(settings) else {
+            return
+        }
+
+        let timestamp = Int32(Date().timeIntervalSince1970)
+        self.partygramProfileOnlineDisplayTimestamp = timestamp
+        updatePartygramProfileGhostLastOnlineTimestamp(context: self.context, timestamp: timestamp)
+        self.requestUpdateLayout?(false)
     }
     
     override func didLoad() {
@@ -1252,11 +1326,12 @@ final class PeerInfoHeaderNode: ASDisplayNode {
 
                 let settings = self.context.sharedContext.immediateExperimentalUISettings
                 if settings.partygramGhostMode && settings.partygramGhostDontSendOnline {
-                    if settings.partygramGhostLastOnlineTimestamp > 0 {
+                    let ghostLastOnlineTimestamp = self.partygramProfileOnlineDisplayTimestamp ?? settings.partygramGhostLastOnlineTimestamp
+                    if ghostLastOnlineTimestamp > 0 {
                         subtitleStringText = stringForUserPresenceLastSeenTimestamp(
                             strings: presentationData.strings,
                             dateTimeFormat: presentationData.dateTimeFormat,
-                            timestamp: settings.partygramGhostLastOnlineTimestamp,
+                            timestamp: ghostLastOnlineTimestamp,
                             relativeTo: Int32(Date().timeIntervalSince1970),
                             showSeconds: settings.partygramShowSecondsInMessageTime
                         )

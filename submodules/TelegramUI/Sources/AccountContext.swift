@@ -563,7 +563,8 @@ public final class AccountContextImpl: AccountContext {
             }
             let settings = view.values[PreferencesKeys.partygramAccountPresenceSettings]?.get(PartygramAccountPresenceSettings.self) ?? .defaultSettings
             let timestamp = settings.remoteLastOnlineTimestamp
-            guard timestamp > 0, timestamp != self.sharedContext.immediateExperimentalUISettings.partygramGhostLastOnlineTimestamp else {
+            let currentTimestamp = self.sharedContext.immediateExperimentalUISettings.partygramGhostLastOnlineTimestamp
+            guard timestamp > 0, timestamp != currentTimestamp else {
                 return
             }
             updatePartygramGhostLastOnlineTimestamp(accountManager: self.sharedContext.accountManager, timestamp: timestamp)
