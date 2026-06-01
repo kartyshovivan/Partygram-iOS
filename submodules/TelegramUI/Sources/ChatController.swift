@@ -10098,6 +10098,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
     
     func commitPurposefulAction() {
         self.applyPartygramReadOnActionIfNeeded()
+        self.context.recordPartygramLocalPresenceActivity()
 
         if let purposefulAction = self.purposefulAction {
             self.purposefulAction = nil

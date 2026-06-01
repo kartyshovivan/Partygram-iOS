@@ -120,13 +120,19 @@ private func partygramShouldSuppressTypingActivity(_ settings: ExperimentalUISet
     return settings.hideTypingActivity
 }
 
-private func updatePartygramGhostLastOnlineTimestamp(accountManager: AccountManager<TelegramAccountManagerTypes>, timestamp: Int32) {
+private func updatePartygramGhostLastOnlineTimestamp(accountManager: AccountManager<TelegramAccountManagerTypes>, timestamp: Int32, onlyIfNewer: Bool = false) {
     guard timestamp > 0 else {
         return
     }
     let _ = updateExperimentalUISettingsInteractively(accountManager: accountManager, { settings in
         var settings = settings
-        if settings.partygramGhostLastOnlineTimestamp != timestamp {
+        let currentTimestamp = settings.partygramGhostLastOnlineTimestamp
+        if onlyIfNewer {
+            guard timestamp > currentTimestamp else {
+                return settings
+            }
+            settings.partygramGhostLastOnlineTimestamp = timestamp
+        } else if currentTimestamp != timestamp {
             settings.partygramGhostLastOnlineTimestamp = timestamp
         }
         return settings
@@ -215,6 +221,7 @@ public final class AccountContextImpl: AccountContext {
     private var partygramAccountPresenceSettingsDisposable: Disposable?
     private var partygramSavedLastOnlineDisposable: Disposable?
     private var partygramSuppressOnlinePresence = false
+    private var partygramLastLocalPresenceActivityTimestamp: Int32 = 0
 
     public let cachedGroupCallContexts: AccountGroupCallContextCache
 
@@ -564,10 +571,10 @@ public final class AccountContextImpl: AccountContext {
             let settings = view.values[PreferencesKeys.partygramAccountPresenceSettings]?.get(PartygramAccountPresenceSettings.self) ?? .defaultSettings
             let timestamp = settings.remoteLastOnlineTimestamp
             let currentTimestamp = self.sharedContext.immediateExperimentalUISettings.partygramGhostLastOnlineTimestamp
-            guard timestamp > 0, timestamp != currentTimestamp else {
+            guard timestamp > currentTimestamp else {
                 return
             }
-            updatePartygramGhostLastOnlineTimestamp(accountManager: self.sharedContext.accountManager, timestamp: timestamp)
+            updatePartygramGhostLastOnlineTimestamp(accountManager: self.sharedContext.accountManager, timestamp: timestamp, onlyIfNewer: true)
         })
 
         self.partygramSavedLastOnlineDisposable = (combineLatest(
@@ -726,13 +733,32 @@ public final class AccountContextImpl: AccountContext {
     public func applyMaxReadIndex(for location: ChatLocation, contextHolder: Atomic<ChatLocationContextHolder?>, messageIndex: MessageIndex) {
         switch location {
         case .peer:
+            self.recordPartygramLocalPresenceActivity()
             let _ = self.engine.messages.applyMaxReadIndexInteractively(index: messageIndex).start()
         case let .replyThread(data):
+            self.recordPartygramLocalPresenceActivity()
             let context = chatLocationContext(holder: contextHolder, account: self.account, data: data)
             context.applyMaxReadIndex(messageIndex: messageIndex)
         case .customChatContents:
             break
         }
+    }
+
+    public func recordPartygramLocalPresenceActivity() {
+        let settings = self.sharedContext.immediateExperimentalUISettings
+        guard partygramShouldSuppressOnlinePresence(settings) else {
+            return
+        }
+        let timestamp = Int32(Date().timeIntervalSince1970)
+        if self.partygramLastLocalPresenceActivityTimestamp > 0, timestamp - self.partygramLastLocalPresenceActivityTimestamp < 30 {
+            return
+        }
+        self.partygramLastLocalPresenceActivityTimestamp = timestamp
+        updatePartygramGhostLastOnlineTimestamp(
+            accountManager: self.sharedContext.accountManager,
+            timestamp: timestamp,
+            onlyIfNewer: true
+        )
     }
 
     public func scheduleGroupCall(peerId: PeerId, parentController: ViewController) {
