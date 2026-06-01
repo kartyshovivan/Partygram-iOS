@@ -1190,6 +1190,7 @@ public class Account {
     private let managedOperationsDisposable = DisposableSet()
     private let shouldSuppressLocalInputActivities = ValuePromise<Bool>(false, ignoreRepeated: true)
     private let shouldSuppressOnlinePresence = ValuePromise<Bool>(false, ignoreRepeated: true)
+    private let currentShouldSuppressOnlinePresence = Atomic<Bool>(value: false)
     private var storageSettingsDisposable: Disposable?
     private var automaticCacheEvictionContext: AutomaticCacheEvictionContext?
     
@@ -1695,8 +1696,9 @@ public class Account {
     }
 
     public func setShouldSuppressOnlinePresence(_ value: Bool) {
+        let previousValue = self.currentShouldSuppressOnlinePresence.swap(value)
         self.shouldSuppressOnlinePresence.set(value)
-        if value {
+        if value && !previousValue {
             self.accountPresenceManager.forceOfflineUpdate()
         }
     }
