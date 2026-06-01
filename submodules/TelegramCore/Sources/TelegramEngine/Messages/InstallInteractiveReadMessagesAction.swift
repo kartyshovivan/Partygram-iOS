@@ -3,7 +3,7 @@ import Postbox
 import TelegramApi
 import SwiftSignalKit
 
-func _internal_installInteractiveReadMessagesAction(postbox: Postbox, stateManager: AccountStateManager, peerId: PeerId, threadId: Int64?) -> Disposable {
+func _internal_installInteractiveReadMessagesAction(postbox: Postbox, stateManager: AccountStateManager, peerId: PeerId, threadId: Int64?, didReadMessages: @escaping (MessageIndex) -> Void) -> Disposable {
     return postbox.installStoreMessageAction(peerId: peerId, { messages, transaction in
         var consumeMessageIds: [MessageId] = []
         var readReactionOrPollVotesIds: [MessageId] = []
@@ -100,8 +100,11 @@ func _internal_installInteractiveReadMessagesAction(postbox: Postbox, stateManag
         
         for (_, index) in readMessageIndexByNamespace {
             if let threadId {
+                var didReadThreadMessages = false
                 var newCountIsZero = false
                 if var data = transaction.getMessageHistoryThreadInfo(peerId: peerId, threadId: threadId)?.data.get(MessageHistoryThreadData.self) {
+                    let previousMaxIncomingReadId = data.maxIncomingReadId
+                    let previousUnreadCount = data.incomingUnreadCount
                     if index.id.id >= data.maxIncomingReadId {
                         if let count = transaction.getThreadMessageCount(peerId: peerId, threadId: threadId, namespace: Namespaces.Message.Cloud, fromIdExclusive: data.maxIncomingReadId, toIndex: index) {
                             data.incomingUnreadCount = max(0, data.incomingUnreadCount - Int32(count))
@@ -124,6 +127,7 @@ func _internal_installInteractiveReadMessagesAction(postbox: Postbox, stateManag
                         if let entry = StoredMessageHistoryThreadInfo(data) {
                             transaction.setMessageHistoryThreadInfo(peerId: peerId, threadId: threadId, info: entry)
                         }
+                        didReadThreadMessages = data.maxIncomingReadId > previousMaxIncomingReadId || data.incomingUnreadCount < previousUnreadCount
                     }
                 }
                 
@@ -140,11 +144,18 @@ func _internal_installInteractiveReadMessagesAction(postbox: Postbox, stateManag
                     }
                     
                     if allTopicsAreRead {
-                        _internal_applyMaxReadIndexInteractively(transaction: transaction, stateManager: stateManager, index: index)
+                        if _internal_applyMaxReadIndexInteractively(transaction: transaction, stateManager: stateManager, index: index) {
+                            didReadThreadMessages = true
+                        }
                     }
                 }
+                if didReadThreadMessages {
+                    didReadMessages(index)
+                }
             } else {
-                _internal_applyMaxReadIndexInteractively(transaction: transaction, stateManager: stateManager, index: index)
+                if _internal_applyMaxReadIndexInteractively(transaction: transaction, stateManager: stateManager, index: index) {
+                    didReadMessages(index)
+                }
             }
         }
     })

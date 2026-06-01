@@ -10,8 +10,10 @@ func _internal_applyMaxReadIndexInteractively(postbox: Postbox, stateManager: Ac
     }
 }
     
-func _internal_applyMaxReadIndexInteractively(transaction: Transaction, stateManager: AccountStateManager, index: MessageIndex) {
+@discardableResult
+func _internal_applyMaxReadIndexInteractively(transaction: Transaction, stateManager: AccountStateManager, index: MessageIndex) -> Bool {
     let messageIds = transaction.applyInteractiveReadMaxIndex(index)
+    let didReadMessages = !messageIds.isEmpty
     
     if let peer = transaction.getPeer(index.id.peerId), peer.isForumOrMonoForum {
         if let combinedPeerReadState = transaction.getCombinedPeerReadState(peer.id), combinedPeerReadState.count == 0 {
@@ -66,6 +68,8 @@ func _internal_applyMaxReadIndexInteractively(transaction: Transaction, stateMan
     } else if index.id.peerId.namespace == Namespaces.Peer.CloudUser || index.id.peerId.namespace == Namespaces.Peer.CloudGroup || index.id.peerId.namespace == Namespaces.Peer.CloudChannel {
         stateManager.notifyAppliedIncomingReadMessages([index.id])
     }
+
+    return didReadMessages
 }
 
 func applyOutgoingReadMaxIndex(transaction: Transaction, index: MessageIndex, beginCountdownAt timestamp: Int32) {

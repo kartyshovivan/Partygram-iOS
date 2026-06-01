@@ -4667,10 +4667,15 @@ public final class ChatHistoryListNodeImpl: ListViewImpl, ChatHistoryNode, ChatH
                 }
             } else if self.interactiveReadActionDisposable == nil {
                 if !partygramShouldSkipReadMessages(self.context.sharedContext.immediateExperimentalUISettings) && !self.context.account.isSupportUser {
+                    let didReadMessages: (MessageIndex) -> Void = { [weak self] _ in
+                        Queue.mainQueue().async {
+                            self?.context.recordPartygramLocalPresenceActivity()
+                        }
+                    }
                     if case let .peer(peerId) = self.chatLocation {
-                        self.interactiveReadActionDisposable = self.context.engine.messages.installInteractiveReadMessagesAction(peerId: peerId, threadId: nil)
+                        self.interactiveReadActionDisposable = self.context.engine.messages.installInteractiveReadMessagesAction(peerId: peerId, threadId: nil, didReadMessages: didReadMessages)
                     } else if case let .replyThread(replyThread) = self.chatLocation, (replyThread.isForumPost || replyThread.isMonoforumPost) {
-                        self.interactiveReadActionDisposable = self.context.engine.messages.installInteractiveReadMessagesAction(peerId: replyThread.peerId, threadId: replyThread.threadId)
+                        self.interactiveReadActionDisposable = self.context.engine.messages.installInteractiveReadMessagesAction(peerId: replyThread.peerId, threadId: replyThread.threadId, didReadMessages: didReadMessages)
                     }
                 }
             }

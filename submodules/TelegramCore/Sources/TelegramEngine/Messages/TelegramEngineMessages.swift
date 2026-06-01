@@ -255,8 +255,8 @@ public extension TelegramEngine {
             return _internal_markMessageContentAsConsumedInteractively(postbox: self.account.postbox, messageId: messageId)
         }
 
-        public func installInteractiveReadMessagesAction(peerId: PeerId, threadId: Int64?) -> Disposable {
-            return _internal_installInteractiveReadMessagesAction(postbox: self.account.postbox, stateManager: self.account.stateManager, peerId: peerId, threadId: threadId)
+        public func installInteractiveReadMessagesAction(peerId: PeerId, threadId: Int64?, didReadMessages: @escaping (MessageIndex) -> Void = { _ in }) -> Disposable {
+            return _internal_installInteractiveReadMessagesAction(postbox: self.account.postbox, stateManager: self.account.stateManager, peerId: peerId, threadId: threadId, didReadMessages: didReadMessages)
         }
         
         public func installInteractiveReadReactionsAction(peerId: PeerId, getVisibleRange: @escaping () -> VisibleMessageRange?, didReadReactionsInMessages: @escaping ([MessageId: [ReactionsMessageAttribute.RecentPeer]]) -> Void) -> Disposable {
