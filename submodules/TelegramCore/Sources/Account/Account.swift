@@ -1191,6 +1191,7 @@ public class Account {
     private let shouldSuppressLocalInputActivities = ValuePromise<Bool>(false, ignoreRepeated: true)
     private let shouldSuppressOnlinePresence = ValuePromise<Bool>(false, ignoreRepeated: true)
     private let currentShouldSuppressOnlinePresence = Atomic<Bool>(value: false)
+    private let partygramLocalPresenceActivityPipe = ValuePipe<Int32>()
     private var storageSettingsDisposable: Disposable?
     private var automaticCacheEvictionContext: AutomaticCacheEvictionContext?
     
@@ -1227,6 +1228,9 @@ public class Account {
     private let _importantTasksRunning = ValuePromise<AccountRunningImportantTasks>(AccountRunningImportantTasks(taskTypes: [], pendingMessageCount: 0, pendingStoryCount: 0), ignoreRepeated: true)
     public var importantTasksRunning: Signal<AccountRunningImportantTasks, NoError> {
         return self._importantTasksRunning.get()
+    }
+    public var partygramLocalPresenceActivityEvents: Signal<Int32, NoError> {
+        return self.partygramLocalPresenceActivityPipe.signal()
     }
     
     fileprivate let masterNotificationKey = Atomic<MasterNotificationKey?>(value: nil)
@@ -1458,8 +1462,14 @@ public class Account {
                 return
             }
             let previousValue = previousPendingOutgoingActivityCount.swap(pendingOutgoingActivityCount)
+            if pendingOutgoingActivityCount > 0 && strongSelf.currentShouldSuppressOnlinePresence.with({ $0 }) {
+                strongSelf.partygramLocalPresenceActivityPipe.putNext(Int32(strongSelf.network.globalTime))
+            }
             if previousValue > 0 && pendingOutgoingActivityCount == 0 {
                 // Outgoing send/upload RPCs can refresh server-side presence after the app already went offline.
+                if strongSelf.currentShouldSuppressOnlinePresence.with({ $0 }) {
+                    strongSelf.partygramLocalPresenceActivityPipe.putNext(Int32(strongSelf.network.globalTime))
+                }
                 strongSelf.accountPresenceManager.confirmOfflineUpdateIfNeeded()
             }
         }))

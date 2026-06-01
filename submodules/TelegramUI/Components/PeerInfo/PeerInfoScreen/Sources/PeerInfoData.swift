@@ -1183,7 +1183,31 @@ func peerInfoScreenData(
                 case bot(subscriberCount: Int32?)
                 case support
             }
-            let status = Signal<PeerInfoStatusData?, NoError> { subscriber in
+            let status: Signal<PeerInfoStatusData?, NoError>
+            if isMyProfile {
+                status = context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.experimentalUISettings])
+                |> map { sharedData -> PeerInfoStatusData? in
+                    let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? .defaultSettings
+                    guard settings.partygramGhostMode && settings.partygramGhostDontSendOnline else {
+                        return nil
+                    }
+                    let timestamp = settings.partygramGhostLastOnlineTimestamp
+                    let text: String
+                    if timestamp > 0 {
+                        text = stringForUserPresenceLastSeenTimestamp(
+                            strings: strings,
+                            dateTimeFormat: dateTimeFormat,
+                            timestamp: timestamp,
+                            relativeTo: Int32(context.account.network.globalTime),
+                            showSeconds: settings.partygramShowSecondsInMessageTime
+                        )
+                    } else {
+                        text = strings.LastSeen_Lately
+                    }
+                    return PeerInfoStatusData(text: text, isActivity: false, key: nil)
+                }
+            } else {
+                status = Signal<PeerInfoStatusData?, NoError> { subscriber in
                 class Manager {
                     var currentValue: TelegramUserPresence? = nil
                     var updateManager: QueueLocalObject<PeerPresenceStatusManager>? = nil
@@ -1293,6 +1317,7 @@ func peerInfoScreenData(
                 return disposable
             }
             |> distinctUntilChanged
+            }
             
             var secretChatKeyFingerprint: Signal<EngineSecretChatKeyFingerprint?, NoError> = .single(nil)
             if let secretChatId {

@@ -219,6 +219,7 @@ public final class AccountContextImpl: AccountContext {
 
     private var experimentalUISettingsDisposable: Disposable?
     private var partygramAccountPresenceSettingsDisposable: Disposable?
+    private var partygramLocalPresenceActivityDisposable: Disposable?
     private var partygramSavedLastOnlineDisposable: Disposable?
     private var partygramSuppressOnlinePresence = false
     private var partygramLastLocalPresenceActivityTimestamp: Int32 = 0
@@ -576,6 +577,10 @@ public final class AccountContextImpl: AccountContext {
             }
             updatePartygramGhostLastOnlineTimestamp(accountManager: self.sharedContext.accountManager, timestamp: timestamp, onlyIfNewer: true)
         })
+        self.partygramLocalPresenceActivityDisposable = (account.partygramLocalPresenceActivityEvents
+        |> deliverOnMainQueue).start(next: { [weak self] timestamp in
+            self?.recordPartygramLocalPresenceActivity(timestamp: timestamp)
+        })
 
         self.partygramSavedLastOnlineDisposable = (combineLatest(
             sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.experimentalUISettings]),
@@ -622,6 +627,7 @@ public final class AccountContextImpl: AccountContext {
         self.countriesConfigurationDisposable?.dispose()
         self.experimentalUISettingsDisposable?.dispose()
         self.partygramAccountPresenceSettingsDisposable?.dispose()
+        self.partygramLocalPresenceActivityDisposable?.dispose()
         self.partygramSavedLastOnlineDisposable?.dispose()
         self.animatedEmojiStickersDisposable?.dispose()
         self.userLimitsConfigurationDisposable?.dispose()
@@ -744,13 +750,13 @@ public final class AccountContextImpl: AccountContext {
         }
     }
 
-    public func recordPartygramLocalPresenceActivity() {
+    public func recordPartygramLocalPresenceActivity(timestamp providedTimestamp: Int32? = nil) {
         let settings = self.sharedContext.immediateExperimentalUISettings
         guard partygramShouldSuppressOnlinePresence(settings) else {
             return
         }
-        let timestamp = Int32(Date().timeIntervalSince1970)
-        if self.partygramLastLocalPresenceActivityTimestamp > 0, timestamp - self.partygramLastLocalPresenceActivityTimestamp < 30 {
+        let timestamp = providedTimestamp ?? Int32(self.account.network.globalTime)
+        guard timestamp > self.partygramLastLocalPresenceActivityTimestamp else {
             return
         }
         self.partygramLastLocalPresenceActivityTimestamp = timestamp

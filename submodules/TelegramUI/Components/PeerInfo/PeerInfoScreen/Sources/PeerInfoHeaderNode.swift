@@ -1258,7 +1258,7 @@ final class PeerInfoHeaderNode: ASDisplayNode {
                             strings: presentationData.strings,
                             dateTimeFormat: presentationData.dateTimeFormat,
                             timestamp: ghostLastOnlineTimestamp,
-                            relativeTo: Int32(Date().timeIntervalSince1970),
+                            relativeTo: Int32(self.context.account.network.globalTime),
                             showSeconds: settings.partygramShowSecondsInMessageTime
                         )
                     } else {
