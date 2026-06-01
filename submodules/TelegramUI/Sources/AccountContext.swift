@@ -750,7 +750,11 @@ public final class AccountContextImpl: AccountContext {
         }
     }
 
-    public func recordPartygramLocalPresenceActivity(timestamp providedTimestamp: Int32? = nil) {
+    public func recordPartygramLocalPresenceActivity() {
+        self.recordPartygramLocalPresenceActivity(timestamp: nil)
+    }
+
+    public func recordPartygramLocalPresenceActivity(timestamp providedTimestamp: Int32?) {
         let settings = self.sharedContext.immediateExperimentalUISettings
         guard partygramShouldSuppressOnlinePresence(settings) else {
             return
