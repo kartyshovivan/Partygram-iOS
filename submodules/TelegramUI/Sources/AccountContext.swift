@@ -120,18 +120,13 @@ private func partygramShouldSuppressTypingActivity(_ settings: ExperimentalUISet
     return settings.hideTypingActivity
 }
 
-private func updatePartygramGhostLastOnlineTimestamp(accountManager: AccountManager<TelegramAccountManagerTypes>, timestamp: Int32, onlyIfNewer: Bool = false) {
+private func updatePartygramGhostLastOnlineTimestamp(accountManager: AccountManager<TelegramAccountManagerTypes>, timestamp: Int32) {
     guard timestamp > 0 else {
         return
     }
     let _ = updateExperimentalUISettingsInteractively(accountManager: accountManager, { settings in
         var settings = settings
-        if onlyIfNewer {
-            guard timestamp > settings.partygramGhostLastOnlineTimestamp else {
-                return settings
-            }
-            settings.partygramGhostLastOnlineTimestamp = timestamp
-        } else if settings.partygramGhostLastOnlineTimestamp != timestamp {
+        if settings.partygramGhostLastOnlineTimestamp != timestamp {
             settings.partygramGhostLastOnlineTimestamp = timestamp
         }
         return settings
@@ -731,23 +726,13 @@ public final class AccountContextImpl: AccountContext {
     public func applyMaxReadIndex(for location: ChatLocation, contextHolder: Atomic<ChatLocationContextHolder?>, messageIndex: MessageIndex) {
         switch location {
         case .peer:
-            self.recordPartygramLocalPresenceActivity()
             let _ = self.engine.messages.applyMaxReadIndexInteractively(index: messageIndex).start()
         case let .replyThread(data):
-            self.recordPartygramLocalPresenceActivity()
             let context = chatLocationContext(holder: contextHolder, account: self.account, data: data)
             context.applyMaxReadIndex(messageIndex: messageIndex)
         case .customChatContents:
             break
         }
-    }
-
-    public func recordPartygramLocalPresenceActivity() {
-        let settings = self.sharedContext.immediateExperimentalUISettings
-        guard partygramShouldSuppressOnlinePresence(settings) else {
-            return
-        }
-        updatePartygramGhostLastOnlineTimestamp(accountManager: self.sharedContext.accountManager, timestamp: Int32(Date().timeIntervalSince1970), onlyIfNewer: true)
     }
 
     public func scheduleGroupCall(peerId: PeerId, parentController: ViewController) {
