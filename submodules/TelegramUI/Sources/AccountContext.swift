@@ -737,14 +737,19 @@ public final class AccountContextImpl: AccountContext {
     }
 
     public func applyMaxReadIndex(for location: ChatLocation, contextHolder: Atomic<ChatLocationContextHolder?>, messageIndex: MessageIndex) {
+        let didReadMessages: (MessageIndex) -> Void = { [weak self] _ in
+            Queue.mainQueue().async {
+                self?.recordPartygramLocalPresenceActivity()
+            }
+        }
         switch location {
         case .peer:
-            self.recordPartygramLocalPresenceActivity()
-            let _ = self.engine.messages.applyMaxReadIndexInteractively(index: messageIndex).start()
+            let _ = self.engine.messages.applyMaxReadIndexInteractively(index: messageIndex, didReadMessages: didReadMessages).start()
         case let .replyThread(data):
-            self.recordPartygramLocalPresenceActivity()
             let context = chatLocationContext(holder: contextHolder, account: self.account, data: data)
-            context.applyMaxReadIndex(messageIndex: messageIndex)
+            context.applyMaxReadIndex(messageIndex: messageIndex, didReadMessages: {
+                didReadMessages(messageIndex)
+            })
         case .customChatContents:
             break
         }

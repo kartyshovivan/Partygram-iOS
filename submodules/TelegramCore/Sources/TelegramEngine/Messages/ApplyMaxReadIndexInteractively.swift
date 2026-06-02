@@ -4,9 +4,14 @@ import TelegramApi
 import SwiftSignalKit
 
 
-func _internal_applyMaxReadIndexInteractively(postbox: Postbox, stateManager: AccountStateManager, index: MessageIndex) -> Signal<Void, NoError> {
-    return postbox.transaction { transaction -> Void in
-        _internal_applyMaxReadIndexInteractively(transaction: transaction, stateManager: stateManager, index: index)
+func _internal_applyMaxReadIndexInteractively(postbox: Postbox, stateManager: AccountStateManager, index: MessageIndex, didReadMessages: @escaping (MessageIndex) -> Void = { _ in }) -> Signal<Void, NoError> {
+    return postbox.transaction { transaction -> Bool in
+        return _internal_applyMaxReadIndexInteractively(transaction: transaction, stateManager: stateManager, index: index)
+    }
+    |> map { didRead -> Void in
+        if didRead {
+            didReadMessages(index)
+        }
     }
 }
     

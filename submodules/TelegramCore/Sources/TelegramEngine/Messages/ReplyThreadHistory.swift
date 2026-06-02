@@ -314,7 +314,7 @@ private class ReplyThreadHistoryContextImpl {
         }
     }
     
-    func applyMaxReadIndex(messageIndex: MessageIndex) {
+    func applyMaxReadIndex(messageIndex: MessageIndex, didReadMessages: @escaping () -> Void = {}) {
         let peerId = self.peerId
         let threadId = self.threadId
         
@@ -333,14 +333,17 @@ private class ReplyThreadHistoryContextImpl {
 
         let account = self.account
         
-        let _ = (self.account.postbox.transaction { transaction -> (Api.InputPeer?, Api.InputPeer?, MessageId?, Int?) in
+        let _ = (self.account.postbox.transaction { transaction -> (Api.InputPeer?, Api.InputPeer?, MessageId?, Int?, Bool) in
             guard let peer = transaction.getPeer(peerId) else {
-                return (nil, nil, nil, nil)
+                return (nil, nil, nil, nil, false)
             }
             
             var markMainAsRead = false
+            var didReadThreadMessages = false
             
             if var data = transaction.getMessageHistoryThreadInfo(peerId: peerId, threadId: threadId)?.data.get(MessageHistoryThreadData.self) {
+                let previousMaxIncomingReadId = data.maxIncomingReadId
+                let previousUnreadCount = data.incomingUnreadCount
                 if messageIndex.id.id >= data.maxIncomingReadId {
                     if let count = transaction.getThreadMessageCount(peerId: peerId, threadId: threadId, namespace: Namespaces.Message.Cloud, fromIdExclusive: data.maxIncomingReadId, toIndex: messageIndex) {
                         data.incomingUnreadCount = max(0, data.incomingUnreadCount - Int32(count))
@@ -381,11 +384,14 @@ private class ReplyThreadHistoryContextImpl {
                     if let entry = StoredMessageHistoryThreadInfo(data) {
                         transaction.setMessageHistoryThreadInfo(peerId: peerId, threadId: threadId, info: entry)
                     }
+                    didReadThreadMessages = data.maxIncomingReadId > previousMaxIncomingReadId || data.incomingUnreadCount < previousUnreadCount
                 }
             }
             
             if markMainAsRead {
-                _internal_applyMaxReadIndexInteractively(transaction: transaction, stateManager: account.stateManager, index: messageIndex)
+                if _internal_applyMaxReadIndexInteractively(transaction: transaction, stateManager: account.stateManager, index: messageIndex) {
+                    didReadThreadMessages = true
+                }
             }
             
             var subPeerId: Api.InputPeer?
@@ -433,10 +439,13 @@ private class ReplyThreadHistoryContextImpl {
             let inputPeer = transaction.getPeer(messageIndex.id.peerId).flatMap(apiInputPeer)
             let readCount = transaction.getThreadMessageCount(peerId: peerId, threadId: threadId, namespace: Namespaces.Message.Cloud, fromIdExclusive: fromIdExclusive, toIndex: toIndex)
             let topMessageId = transaction.getMessagesWithThreadId(peerId: peerId, namespace: Namespaces.Message.Cloud, threadId: threadId, from: MessageIndex.upperBound(peerId: peerId, namespace: Namespaces.Message.Cloud), includeFrom: false, to: MessageIndex.lowerBound(peerId: peerId, namespace: Namespaces.Message.Cloud), limit: 1).first?.id
+            if let readCount, readCount > 0 {
+                didReadThreadMessages = true
+            }
             
-            return (inputPeer, subPeerId, topMessageId, readCount)
+            return (inputPeer, subPeerId, topMessageId, readCount, didReadThreadMessages)
         }
-        |> deliverOnMainQueue).start(next: { [weak self] inputPeer, subPeerId, topMessageId, readCount in
+        |> deliverOnMainQueue).start(next: { [weak self] inputPeer, subPeerId, topMessageId, readCount, didReadThreadMessages in
             guard let strongSelf = self else {
                 return
             }
@@ -460,6 +469,9 @@ private class ReplyThreadHistoryContextImpl {
             }
 
             strongSelf.unreadCountValue = unreadCountValue
+            if didReadThreadMessages {
+                didReadMessages()
+            }
 
             if let state = strongSelf.stateValue {
                 if let indices = state.holeIndices[messageIndex.id.namespace] {
@@ -595,9 +607,9 @@ public class ReplyThreadHistoryContext {
         })
     }
     
-    public func applyMaxReadIndex(messageIndex: MessageIndex) {
+    public func applyMaxReadIndex(messageIndex: MessageIndex, didReadMessages: @escaping () -> Void = {}) {
         self.impl.with { impl in
-            impl.applyMaxReadIndex(messageIndex: messageIndex)
+            impl.applyMaxReadIndex(messageIndex: messageIndex, didReadMessages: didReadMessages)
         }
     }
 }
