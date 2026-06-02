@@ -285,6 +285,13 @@ private func canViewReadStats(message: Message, participantCount: Int?, isMessag
     return true
 }
 
+private func partygramShouldOfferReadUpToMessage(_ settings: ExperimentalUISettings) -> Bool {
+    if settings.partygramGhostMode {
+        return settings.partygramGhostDontReadMessages
+    }
+    return settings.skipReadHistory
+}
+
 func canReplyInChat(_ chatPresentationInterfaceState: ChatPresentationInterfaceState, accountPeerId: PeerId) -> Bool {
     if case let .customChatContents(contents) = chatPresentationInterfaceState.subject, case .hashTagSearch = contents.kind {
         return true
@@ -854,25 +861,25 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
         )
     }
 
-    let readCounters: Signal<Bool, NoError>
+    let readCounters: Signal<(outgoing: Bool, incoming: Bool), NoError>
     if case let .replyThread(threadMessage) = chatPresentationInterfaceState.chatLocation, threadMessage.isForumPost {
         readCounters = context.engine.data.get(TelegramEngine.EngineData.Item.Peer.ThreadData(id: threadMessage.peerId, threadId: threadMessage.threadId))
-        |> map { threadData -> Bool in
+        |> map { threadData -> (outgoing: Bool, incoming: Bool) in
             guard let threadData else {
-                return false
+                return (false, false)
             }
-            return threadData.maxOutgoingReadId >= message.id.id
+            return (threadData.maxOutgoingReadId >= message.id.id, threadData.maxIncomingReadId >= message.id.id)
         }
     } else {
         readCounters = context.engine.data.get(TelegramEngine.EngineData.Item.Messages.PeerReadCounters(id: messages[0].id.peerId))
-        |> map { readCounters -> Bool in
-            return readCounters.isOutgoingMessageIndexRead(message.index)
+        |> map { readCounters -> (outgoing: Bool, incoming: Bool) in
+            return (readCounters.isOutgoingMessageIndexRead(message.index), readCounters.isIncomingMessageIndexRead(message.index))
         }
     }
 
     let isScheduled = chatPresentationInterfaceState.subject == .scheduledMessages
 
-    let dataSignal: Signal<(MessageContextMenuData, [MessageId: ChatUpdatingMessageMedia], InfoSummaryData, AppConfiguration, Bool, Int32, AvailableReactions?, TranslationSettings, LoggingSettings, NotificationSoundList?, EnginePeer?), NoError> = combineLatest(
+    let dataSignal: Signal<(MessageContextMenuData, [MessageId: ChatUpdatingMessageMedia], InfoSummaryData, AppConfiguration, Bool, Bool, Int32, AvailableReactions?, TranslationSettings, LoggingSettings, NotificationSoundList?, EnginePeer?), NoError> = combineLatest(
         loadLimits,
         loadStickerSaveStatusSignal,
         loadResourceStatusSignal,
@@ -887,7 +894,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
         context.engine.peers.notificationSoundList() |> take(1),
         context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: context.account.peerId))
     )
-    |> map { limitsAndAppConfig, stickerSaveStatus, resourceStatus, messageActions, updatingMessageMedia, infoSummaryData, isMessageRead, messageViewsPrivacyTips, availableReactions, sharedData, notificationSoundList, accountPeer -> (MessageContextMenuData, [MessageId: ChatUpdatingMessageMedia], InfoSummaryData, AppConfiguration, Bool, Int32, AvailableReactions?, TranslationSettings, LoggingSettings, NotificationSoundList?, EnginePeer?) in
+    |> map { limitsAndAppConfig, stickerSaveStatus, resourceStatus, messageActions, updatingMessageMedia, infoSummaryData, readCounters, messageViewsPrivacyTips, availableReactions, sharedData, notificationSoundList, accountPeer -> (MessageContextMenuData, [MessageId: ChatUpdatingMessageMedia], InfoSummaryData, AppConfiguration, Bool, Bool, Int32, AvailableReactions?, TranslationSettings, LoggingSettings, NotificationSoundList?, EnginePeer?) in
         let (limitsConfiguration, appConfig) = limitsAndAppConfig
         var canEdit = false
         if !isAction {
@@ -935,12 +942,12 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
             messageActions: messageActions
         )
 
-        return (data, updatingMessageMedia, infoSummaryData, appConfig, isMessageRead, messageViewsPrivacyTips, availableReactions, translationSettings, loggingSettings, notificationSoundList, accountPeer)
+        return (data, updatingMessageMedia, infoSummaryData, appConfig, readCounters.outgoing, readCounters.incoming, messageViewsPrivacyTips, availableReactions, translationSettings, loggingSettings, notificationSoundList, accountPeer)
     }
 
     return dataSignal
     |> deliverOnMainQueue
-    |> map { data, updatingMessageMedia, infoSummaryData, appConfig, isMessageRead, messageViewsPrivacyTips, availableReactions, translationSettings, loggingSettings, notificationSoundList, accountPeer -> ContextController.Items in
+    |> map { data, updatingMessageMedia, infoSummaryData, appConfig, isMessageRead, isIncomingMessageRead, messageViewsPrivacyTips, availableReactions, translationSettings, loggingSettings, notificationSoundList, accountPeer -> ContextController.Items in
         let isPremium = accountPeer?.isPremium ?? false
 
         var actions: [ContextMenuItem] = []
@@ -1177,6 +1184,22 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
                         completed()
                     })
                 })
+            })))
+        }
+
+        if messages.count == 1
+            && !isPinnedMessages
+            && !isReplyThreadHead
+            && !context.account.isSupportUser
+            && partygramShouldOfferReadUpToMessage(context.sharedContext.immediateExperimentalUISettings)
+            && message.id.namespace == Namespaces.Message.Cloud
+            && message.flags.contains(.Incoming)
+            && !isIncomingMessageRead {
+            actions.append(.action(ContextMenuActionItem(text: "Прочитать до этого сообщения", icon: { theme in
+                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Read"), color: theme.actionSheet.primaryTextColor)
+            }, action: { _, f in
+                interfaceInteraction.readUpToMessage(message.index)
+                f(.dismissWithoutContent)
             })))
         }
 

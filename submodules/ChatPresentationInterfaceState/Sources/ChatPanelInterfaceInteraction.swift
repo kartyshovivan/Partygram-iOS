@@ -72,6 +72,7 @@ public final class ChatPanelInterfaceInteraction {
     }
     
     public let setupReplyMessage: (MessageId?, EngineMessageReplyInnerSubject?, @escaping (ContainedViewLayoutTransition, @escaping () -> Void) -> Void) -> Void
+    public let readUpToMessage: (MessageIndex) -> Void
     public let setupEditMessage: (MessageId?, @escaping (ContainedViewLayoutTransition) -> Void) -> Void
     public let beginMessageSelection: ([MessageId], @escaping (ContainedViewLayoutTransition) -> Void) -> Void
     public let cancelMessageSelection: (ContainedViewLayoutTransition) -> Void
@@ -205,6 +206,7 @@ public final class ChatPanelInterfaceInteraction {
         
     public init(
         setupReplyMessage: @escaping (MessageId?, EngineMessageReplyInnerSubject?, @escaping (ContainedViewLayoutTransition, @escaping () -> Void) -> Void) -> Void,
+        readUpToMessage: @escaping (MessageIndex) -> Void = { _ in },
         setupEditMessage: @escaping (MessageId?, @escaping (ContainedViewLayoutTransition) -> Void) -> Void,
         beginMessageSelection: @escaping ([MessageId], @escaping (ContainedViewLayoutTransition) -> Void) -> Void,
         cancelMessageSelection: @escaping (ContainedViewLayoutTransition) -> Void,
@@ -337,6 +339,7 @@ public final class ChatPanelInterfaceInteraction {
         statuses: ChatPanelInterfaceInteractionStatuses?
     ) {
         self.setupReplyMessage = setupReplyMessage
+        self.readUpToMessage = readUpToMessage
         self.setupEditMessage = setupEditMessage
         self.beginMessageSelection = beginMessageSelection
         self.cancelMessageSelection = cancelMessageSelection

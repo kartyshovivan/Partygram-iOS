@@ -1756,6 +1756,11 @@ extension ChatControllerImpl {
                     completion(t, {})
                 })
             }
+        }, readUpToMessage: { [weak self] messageIndex in
+            guard let self else {
+                return
+            }
+            self.context.applyMaxReadIndex(for: self.chatLocation, contextHolder: self.chatLocationContextHolder, messageIndex: messageIndex)
         }, setupEditMessage: { [weak self] messageId, completion in
             if let strongSelf = self, strongSelf.isNodeLoaded {
                 guard let messageId = messageId else {

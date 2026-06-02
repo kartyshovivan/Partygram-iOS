@@ -17,6 +17,7 @@ import WebUI
 import AvatarNode
 import PeerNameColorItem
 import BoostLevelIconComponent
+import UndoUI
 
 private let enabledPublicBioEntities: EnabledEntityTypes = [.allUrl, .mention, .hashtag]
 private let enabledPrivateBioEntities: EnabledEntityTypes = [.internalUrl, .mention, .hashtag]
@@ -77,6 +78,28 @@ func infoItems(
     let birthdayContextAction: (ASDisplayNode, ContextGesture?, CGPoint?) -> Void = { node, gesture, _ in
         interaction.openBirthdayContextMenu(node, gesture)
     }
+    func partygramPeerIdText(_ peerId: PeerId) -> String {
+        return "\(peerId.id._internalGetInt64Value())"
+    }
+    let copyPeerId: (PeerId) -> Void = { peerId in
+        UIPasteboard.general.string = partygramPeerIdText(peerId)
+        interaction.getController()?.present(UndoOverlayController(
+            presentationData: presentationData,
+            content: .copy(text: "ID скопирован"),
+            elevatedLayout: false,
+            animateInAsReplacement: false,
+            action: { _ in return false }
+        ), in: .current)
+    }
+    func partygramPeerIdItem(id: AnyHashable, peerId: PeerId) -> PeerInfoScreenLabeledValueItem {
+        return PeerInfoScreenLabeledValueItem(id: id, label: "ID", text: partygramPeerIdText(peerId), textColor: .accent, action: { _, _ in
+            copyPeerId(peerId)
+        }, longTapAction: { _ in
+            copyPeerId(peerId)
+        }, requestLayout: { animated in
+            interaction.requestLayout(animated)
+        })
+    }
     
     if case let .user(user) = data.peer {
         let ItemCallList = 1000
@@ -89,6 +112,7 @@ func infoItems(
         let ItemNote = 3004
         let ItemAppFooter = 3005
         let ItemMutualContact = 3006
+        let ItemPeerId = 3007
         let ItemAffiliate = 4000
         let ItemAffiliateInfo = 4001
         let ItemBusinessHours = 5000
@@ -188,6 +212,7 @@ func infoItems(
                 )
             )
         }
+        items[currentPeerInfoSection]!.append(partygramPeerIdItem(id: ItemPeerId, peerId: user.id))
         if !isMyProfile && user.botInfo == nil && !user.flags.contains(.isSupport) && !user.isDeleted {
             items[currentPeerInfoSection]!.append(PeerInfoScreenLabeledValueItem(id: ItemMutualContact, label: "Взаимный контакт", text: user.flags.contains(.mutualContact) ? "Да" : "Нет", textColor: .primary, action: nil, requestLayout: { animated in
                 interaction.requestLayout(animated)
@@ -547,6 +572,7 @@ func infoItems(
         let ItemBalance = 9
         let ItemEdit = 10
         let ItemPeerPersonalChannel = 11
+        let ItemPeerId = 12
         
         if let _ = data.threadData {
             let mainUsername: String
@@ -592,6 +618,7 @@ func infoItems(
             } else {
                 items[currentPeerInfoSection]!.append(PeerInfoScreenCommentItem(id: ItemUsernameInfo, text: presentationData.strings.PeerInfo_PrivateShareLinkInfo))
             }
+            items[currentPeerInfoSection]!.append(partygramPeerIdItem(id: ItemPeerId, peerId: channel.id))
         } else {
             if let location = (data.cachedData as? CachedChannelData)?.peerGeoLocation {
                 items[.groupLocation]!.append(PeerInfoScreenHeaderItem(id: ItemLocationHeader, text: presentationData.strings.GroupInfo_Location.uppercased()))
@@ -645,6 +672,7 @@ func infoItems(
                     )
                 )
             }
+            items[currentPeerInfoSection]!.append(partygramPeerIdItem(id: ItemPeerId, peerId: channel.id))
             if let cachedData = data.cachedData as? CachedChannelData {
                 let aboutText: String?
                 if channel.isFake {
@@ -802,6 +830,8 @@ func infoItems(
             }
         }
     } else if case let .legacyGroup(group) = data.peer {
+        let ItemPeerId = 1
+        items[currentPeerInfoSection]!.append(partygramPeerIdItem(id: ItemPeerId, peerId: group.id))
         if let cachedData = data.cachedData as? CachedGroupData {
             let aboutText: String?
             if group.isFake {
