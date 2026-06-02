@@ -3634,7 +3634,7 @@ public final class ChatHistoryListNodeImpl: ListViewImpl, ChatHistoryNode, ChatH
         guard !self.context.account.isSupportUser else {
             return
         }
-        guard let index = self.currentMaxVisibleIncomingMessageIndex else {
+        guard let index = self.currentVisibleReadMessageIndex() ?? self.currentMaxVisibleIncomingMessageIndex else {
             return
         }
         switch self.chatLocation {
@@ -3655,6 +3655,44 @@ public final class ChatHistoryListNodeImpl: ListViewImpl, ChatHistoryNode, ChatH
             let _ = self.displayUnseenReactionAnimations(messageIds: Array(messageIds))
             self.messageIdsWithReactionsScheduledForMarkAsSeen.removeAll()
             self.markReactionsAndPollVotesSeenForMessageIds(messageIds)
+        }
+    }
+
+    private func currentVisibleReadMessageIndex() -> MessageIndex? {
+        var incomingIndex: MessageIndex?
+        var overallIndex: MessageIndex?
+
+        self.forEachVisibleMessageItemNode { itemNode in
+            guard self.itemNodeVisibleInsideInsets(itemNode), let item = itemNode.item else {
+                return
+            }
+            for (message, _) in item.content {
+                if let current = overallIndex {
+                    if current < message.index {
+                        overallIndex = message.index
+                    }
+                } else {
+                    overallIndex = message.index
+                }
+                if !message.flags.intersection(.IsIncomingMask).isEmpty {
+                    if let current = incomingIndex {
+                        if current < message.index {
+                            incomingIndex = message.index
+                        }
+                    } else {
+                        incomingIndex = message.index
+                    }
+                }
+            }
+        }
+
+        switch self.chatLocation {
+        case .peer:
+            return incomingIndex
+        case .replyThread:
+            return overallIndex
+        case .customChatContents:
+            return nil
         }
     }
 
