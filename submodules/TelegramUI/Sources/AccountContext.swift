@@ -737,6 +737,8 @@ public final class AccountContextImpl: AccountContext {
     }
 
     public func applyMaxReadIndex(for location: ChatLocation, contextHolder: Atomic<ChatLocationContextHolder?>, messageIndex: MessageIndex) {
+        self.recordPartygramLocalPresenceActivity()
+
         let didReadMessages: (MessageIndex) -> Void = { [weak self] _ in
             Queue.mainQueue().async {
                 self?.recordPartygramLocalPresenceActivity()

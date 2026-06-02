@@ -21,6 +21,7 @@ extension PeerInfoScreenNode {
             
             if !unreadChatListPeerIds.isEmpty {
                 items.append(.action(ContextMenuActionItem(text: strings.ChatList_Context_MarkAllAsRead, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/MarkAsRead"), color: theme.contextMenu.primaryColor) }, action: { _, f in
+                    context.recordPartygramLocalPresenceActivity()
                     let _ = (context.engine.messages.markAllChatsAsReadInteractively(items: [(groupId: .root, filterPredicate: nil)])
                     |> deliverOnMainQueue).startStandalone(completed: {
                         f(.default)

@@ -31,6 +31,7 @@ func archiveContextMenuItems(context: AccountContext, groupId: PeerGroupId, chat
         
         if !unreadChatListPeerIds.isEmpty {
             items.append(.action(ContextMenuActionItem(text: strings.ChatList_Context_MarkAllAsRead, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/MarkAsRead"), color: theme.contextMenu.primaryColor) }, action: { _, f in
+                context.recordPartygramLocalPresenceActivity()
                 let _ = (context.engine.messages.markAllChatsAsReadInteractively(items: [(groupId: EngineChatList.Group(groupId), filterPredicate: nil)])
                 |> deliverOnMainQueue).startStandalone(completed: {
                     f(.default)
@@ -347,6 +348,7 @@ func chatContextMenuItems(context: AccountContext, peerId: PeerId, promoInfo: Ch
                         
                         if isUnread {
                             items.append(.action(ContextMenuActionItem(text: strings.ChatList_Context_MarkAsRead, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/MarkAsRead"), color: theme.contextMenu.primaryColor) }, action: { _, f in
+                                context.recordPartygramLocalPresenceActivity()
                                 let _ = context.engine.messages.togglePeersUnreadMarkInteractively(peerIds: [peerId], setToValue: nil).startStandalone()
                                 f(.default)
                             })))
@@ -667,6 +669,7 @@ public func chatForumTopicMenuItems(context: AccountContext, peerId: PeerId, thr
         
         if isUnread {
             items.append(.action(ContextMenuActionItem(text: strings.ChatList_Context_MarkAsRead, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/MarkAsRead"), color: theme.contextMenu.primaryColor) }, action: { _, f in
+                context.recordPartygramLocalPresenceActivity()
                 let _ = context.engine.messages.markForumThreadAsRead(peerId: peerId, threadId: threadId).startStandalone()
                 f(.default)
             })))

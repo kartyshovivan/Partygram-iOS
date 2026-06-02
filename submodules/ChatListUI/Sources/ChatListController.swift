@@ -4112,6 +4112,7 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
                     markItems.append((EngineChatList.Group(additionalGroupId), filterPredicate))
                 }
                 
+                self.context.recordPartygramLocalPresenceActivity()
                 let _ = self.context.engine.messages.markAllChatsAsReadInteractively(items: markItems).startStandalone()
                 break
             }
@@ -4893,6 +4894,7 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
             } else {
                 signal = .complete()
             }
+            self.context.recordPartygramLocalPresenceActivity()
             let _ = (signal
             |> deliverOnMainQueue).startStandalone(completed: { [weak self] in
                 self?.donePressed()
