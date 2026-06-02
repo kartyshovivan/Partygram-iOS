@@ -338,6 +338,40 @@ public func clearPeerUnseenReactionsAndPollVotesInteractively(account: Account, 
     |> ignoreValues
 }
 
+func _internal_clearPeerUnseenReactionsAndPollVotesLocally(account: Account, peerId: PeerId, threadId: Int64?) -> Signal<Never, NoError> {
+    return account.postbox.transaction { transaction -> Void in
+        if peerId.namespace == Namespaces.Peer.SecretChat {
+            return
+        }
+
+        let reactionIds = Set(transaction.getMessageIndicesWithTag(peerId: peerId, threadId: threadId, namespace: Namespaces.Message.Cloud, tag: .unseenReaction).map({ $0.id }))
+        let pollVoteIds = Set(transaction.getMessageIndicesWithTag(peerId: peerId, threadId: threadId, namespace: Namespaces.Message.Cloud, tag: .unseenPollVote).map({ $0.id }))
+        let messageIds = reactionIds.union(pollVoteIds)
+
+        for messageId in messageIds {
+            markUnseenReactionOrPollVotesMessage(transaction: transaction, id: messageId, addSynchronizeAction: false)
+            transaction.setPendingMessageAction(type: .readReactionOrPollVote, id: messageId, action: nil)
+        }
+
+        if let summary = transaction.getMessageTagSummary(peerId: peerId, threadId: threadId, tagMask: .unseenReaction, namespace: Namespaces.Message.Cloud, customTag: nil) {
+            var maxId: Int32 = summary.range.maxId
+            if let index = transaction.getTopPeerMessageIndex(peerId: peerId, namespace: Namespaces.Message.Cloud) {
+                maxId = index.id.id
+            }
+            transaction.replaceMessageTagSummary(peerId: peerId, threadId: threadId, tagMask: .unseenReaction, namespace: Namespaces.Message.Cloud, customTag: nil, count: 0, maxId: maxId)
+        }
+
+        if let summary = transaction.getMessageTagSummary(peerId: peerId, threadId: threadId, tagMask: .unseenPollVote, namespace: Namespaces.Message.Cloud, customTag: nil) {
+            var maxId: Int32 = summary.range.maxId
+            if let index = transaction.getTopPeerMessageIndex(peerId: peerId, namespace: Namespaces.Message.Cloud) {
+                maxId = index.id.id
+            }
+            transaction.replaceMessageTagSummary(peerId: peerId, threadId: threadId, tagMask: .unseenPollVote, namespace: Namespaces.Message.Cloud, customTag: nil, count: 0, maxId: maxId)
+        }
+    }
+    |> ignoreValues
+}
+
 func _internal_markAllChatsAsReadInteractively(transaction: Transaction, network: Network, viewTracker: AccountViewTracker, groupId: PeerGroupId, filterPredicate: ChatListFilterPredicate?) {
     for peerId in transaction.getUnreadChatListPeerIds(groupId: groupId, filterPredicate: filterPredicate, additionalFilter: nil, stopOnFirstMatch: false) {
         _internal_togglePeerUnreadMarkInteractively(transaction: transaction, network: network, viewTracker: viewTracker, peerId: peerId, setToValue: false)

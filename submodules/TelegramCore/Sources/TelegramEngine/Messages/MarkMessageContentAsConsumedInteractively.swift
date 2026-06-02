@@ -173,6 +173,15 @@ func _internal_markReactionsOrPollVotesAsSeenInteractively(postbox: Postbox, mes
     }
 }
 
+func _internal_markReactionsOrPollVotesAsSeenLocally(postbox: Postbox, messageIds: Set<MessageId>) -> Signal<Void, NoError> {
+    return postbox.transaction { transaction -> Void in
+        for messageId in messageIds {
+            markUnseenReactionOrPollVotesMessage(transaction: transaction, id: messageId, addSynchronizeAction: false)
+            transaction.setPendingMessageAction(type: .readReactionOrPollVote, id: messageId, action: nil)
+        }
+    }
+}
+
 func markMessageContentAsConsumedRemotely(transaction: Transaction, messageId: MessageId, consumeDate: Int32?) {
     if let message = transaction.getMessage(messageId) {
         var updateMessage = false
@@ -262,4 +271,3 @@ func markMessageContentAsConsumedRemotely(transaction: Transaction, messageId: M
         }
     }
 }
-

@@ -255,12 +255,20 @@ public extension TelegramEngine {
             return _internal_markMessageContentAsConsumedInteractively(postbox: self.account.postbox, messageId: messageId)
         }
 
+        public func markReactionsOrPollVotesAsSeenLocally(messageIds: Set<MessageId>) -> Signal<Void, NoError> {
+            return _internal_markReactionsOrPollVotesAsSeenLocally(postbox: self.account.postbox, messageIds: messageIds)
+        }
+
         public func installInteractiveReadMessagesAction(peerId: PeerId, threadId: Int64?, didReadMessages: @escaping (MessageIndex) -> Void = { _ in }) -> Disposable {
             return _internal_installInteractiveReadMessagesAction(postbox: self.account.postbox, stateManager: self.account.stateManager, peerId: peerId, threadId: threadId, didReadMessages: didReadMessages)
         }
         
         public func installInteractiveReadReactionsAction(peerId: PeerId, getVisibleRange: @escaping () -> VisibleMessageRange?, didReadReactionsInMessages: @escaping ([MessageId: [ReactionsMessageAttribute.RecentPeer]]) -> Void) -> Disposable {
             return _internal_installInteractiveReadReactionsAction(postbox: self.account.postbox, stateManager: self.account.stateManager, peerId: peerId, getVisibleRange: getVisibleRange, didReadReactionsInMessages: didReadReactionsInMessages)
+        }
+
+        public func clearPeerUnseenReactionsAndPollVotesLocally(peerId: PeerId, threadId: Int64?) -> Signal<Never, NoError> {
+            return _internal_clearPeerUnseenReactionsAndPollVotesLocally(account: self.account, peerId: peerId, threadId: threadId)
         }
 
         public func requestMessageSelectPollOption(messageId: MessageId, opaqueIdentifiers: [Data]) -> Signal<TelegramMediaPoll?, RequestMessageSelectPollOptionError> {
@@ -307,7 +315,7 @@ public extension TelegramEngine {
             }
         }
         
-        public func earliestUnseenPersonalReactionMessage(peerId: PeerId, threadId: Int64?) -> Signal<EarliestUnseenPersonalMentionMessageResult, NoError> {
+        public func earliestUnseenPersonalReactionMessage(peerId: PeerId, threadId: Int64?, synchronizeWhenEmpty: Bool = true) -> Signal<EarliestUnseenPersonalMentionMessageResult, NoError> {
             let account = self.account
             return _internal_earliestUnseenPersonalReactionMessage(account: self.account, peerId: peerId, threadId: threadId)
             |> mapToSignal { result -> Signal<EarliestUnseenPersonalMentionMessageResult, NoError> in
@@ -316,14 +324,18 @@ public extension TelegramEngine {
                     return .single(result)
                 case let .result(messageId):
                     if messageId == nil {
-                        let _ = clearPeerUnseenReactionsAndPollVotesInteractively(account: account, peerId: peerId, threadId: threadId).start()
+                        if synchronizeWhenEmpty {
+                            let _ = clearPeerUnseenReactionsAndPollVotesInteractively(account: account, peerId: peerId, threadId: threadId).start()
+                        } else {
+                            let _ = _internal_clearPeerUnseenReactionsAndPollVotesLocally(account: account, peerId: peerId, threadId: threadId).start()
+                        }
                     }
                     return .single(result)
                 }
             }
         }
         
-        public func earliestUnseenPollVoteMessage(peerId: PeerId, threadId: Int64?) -> Signal<EarliestUnseenPersonalMentionMessageResult, NoError> {
+        public func earliestUnseenPollVoteMessage(peerId: PeerId, threadId: Int64?, synchronizeWhenEmpty: Bool = true) -> Signal<EarliestUnseenPersonalMentionMessageResult, NoError> {
             let account = self.account
             return _internal_earliestUnseenPollVoteMessage(account: self.account, peerId: peerId, threadId: threadId)
             |> mapToSignal { result -> Signal<EarliestUnseenPersonalMentionMessageResult, NoError> in
@@ -332,7 +344,11 @@ public extension TelegramEngine {
                     return .single(result)
                 case let .result(messageId):
                     if messageId == nil {
-                        let _ = clearPeerUnseenReactionsAndPollVotesInteractively(account: account, peerId: peerId, threadId: threadId).start()
+                        if synchronizeWhenEmpty {
+                            let _ = clearPeerUnseenReactionsAndPollVotesInteractively(account: account, peerId: peerId, threadId: threadId).start()
+                        } else {
+                            let _ = _internal_clearPeerUnseenReactionsAndPollVotesLocally(account: account, peerId: peerId, threadId: threadId).start()
+                        }
                     }
                     return .single(result)
                 }

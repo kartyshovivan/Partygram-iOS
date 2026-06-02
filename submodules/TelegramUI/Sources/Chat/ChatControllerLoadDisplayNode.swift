@@ -127,6 +127,13 @@ import GlobalControlPanelsContext
 import ComponentFlow
 import ComponentDisplayAdapters
 
+private func partygramShouldSkipReactionReadSync(_ settings: ExperimentalUISettings) -> Bool {
+    if settings.partygramGhostMode {
+        return settings.partygramGhostDontReadMessages
+    }
+    return settings.skipReadHistory
+}
+
 extension ChatControllerImpl {
     func reloadChatLocation(chatLocation: ChatLocation, chatLocationContextHolder: Atomic<ChatLocationContextHolder?>, historyNode: ChatHistoryListNodeImpl, apply: @escaping ((ContainedViewLayoutTransition?) -> Void) -> Void) {
         self.contentDataReady.set(false)
@@ -1443,7 +1450,7 @@ extension ChatControllerImpl {
         
         self.chatDisplayNode.navigateButtons.reactionsPressed = { [weak self] in
             if let strongSelf = self, strongSelf.isNodeLoaded, let peerId = strongSelf.chatLocation.peerId {
-                let signal = strongSelf.context.engine.messages.earliestUnseenPersonalReactionMessage(peerId: peerId, threadId: strongSelf.chatLocation.threadId)
+                let signal = strongSelf.context.engine.messages.earliestUnseenPersonalReactionMessage(peerId: peerId, threadId: strongSelf.chatLocation.threadId, synchronizeWhenEmpty: !partygramShouldSkipReactionReadSync(strongSelf.context.sharedContext.immediateExperimentalUISettings))
                 strongSelf.navigationActionDisposable.set((signal |> deliverOnMainQueue).startStrict(next: { result in
                     if let strongSelf = self {
                         switch result {
@@ -1593,7 +1600,11 @@ extension ChatControllerImpl {
                     guard let strongSelf = self, let peerId = strongSelf.chatLocation.peerId else {
                         return
                     }
-                    let _ = clearPeerUnseenReactionsAndPollVotesInteractively(account: strongSelf.context.account, peerId: peerId, threadId: strongSelf.chatLocation.threadId).startStandalone()
+                    if partygramShouldSkipReactionReadSync(strongSelf.context.sharedContext.immediateExperimentalUISettings) {
+                        let _ = strongSelf.context.engine.messages.clearPeerUnseenReactionsAndPollVotesLocally(peerId: peerId, threadId: strongSelf.chatLocation.threadId).startStandalone()
+                    } else {
+                        let _ = clearPeerUnseenReactionsAndPollVotesInteractively(account: strongSelf.context.account, peerId: peerId, threadId: strongSelf.chatLocation.threadId).startStandalone()
+                    }
                 }
             )))
             let items = ContextController.Items(content: .list(menuItems))
@@ -1611,7 +1622,7 @@ extension ChatControllerImpl {
         
         self.chatDisplayNode.navigateButtons.pollVotesPressed = { [weak self] in
             if let strongSelf = self, strongSelf.isNodeLoaded, let peerId = strongSelf.chatLocation.peerId {
-                let signal = strongSelf.context.engine.messages.earliestUnseenPollVoteMessage(peerId: peerId, threadId: strongSelf.chatLocation.threadId)
+                let signal = strongSelf.context.engine.messages.earliestUnseenPollVoteMessage(peerId: peerId, threadId: strongSelf.chatLocation.threadId, synchronizeWhenEmpty: !partygramShouldSkipReactionReadSync(strongSelf.context.sharedContext.immediateExperimentalUISettings))
                 strongSelf.navigationActionDisposable.set((signal |> deliverOnMainQueue).startStrict(next: { result in
                     if let strongSelf = self {
                         switch result {
@@ -1653,7 +1664,11 @@ extension ChatControllerImpl {
                     guard let strongSelf = self, let peerId = strongSelf.chatLocation.peerId else {
                         return
                     }
-                    let _ = clearPeerUnseenReactionsAndPollVotesInteractively(account: strongSelf.context.account, peerId: peerId, threadId: strongSelf.chatLocation.threadId).startStandalone()
+                    if partygramShouldSkipReactionReadSync(strongSelf.context.sharedContext.immediateExperimentalUISettings) {
+                        let _ = strongSelf.context.engine.messages.clearPeerUnseenReactionsAndPollVotesLocally(peerId: peerId, threadId: strongSelf.chatLocation.threadId).startStandalone()
+                    } else {
+                        let _ = clearPeerUnseenReactionsAndPollVotesInteractively(account: strongSelf.context.account, peerId: peerId, threadId: strongSelf.chatLocation.threadId).startStandalone()
+                    }
                 }
             )))
             let items = ContextController.Items(content: .list(menuItems))

@@ -1024,8 +1024,8 @@ public final class ChatHistoryListNodeImpl: ListViewImpl, ChatHistoryNode, ChatH
             guard let strongSelf = self else {
                 return
             }
-            if strongSelf.canReadHistoryValue && !strongSelf.suspendReadingReactions && !partygramShouldSkipReadMessages(strongSelf.context.sharedContext.immediateExperimentalUISettings) {
-                strongSelf.context.account.viewTracker.updateMarkReactionsAndVotesSeenForMessageIds(messageIds: Set(messageIds.map(\.messageId)))
+            if strongSelf.canReadHistoryValue && !strongSelf.suspendReadingReactions {
+                strongSelf.markReactionsAndPollVotesSeenForMessageIds(Set(messageIds.map(\.messageId)))
             } else {
                 strongSelf.messageIdsWithReactionsScheduledForMarkAsSeen.formUnion(messageIds.map(\.messageId))
             }
@@ -2620,19 +2620,31 @@ public final class ChatHistoryListNodeImpl: ListViewImpl, ChatHistoryNode, ChatH
     }
 
     private func attemptReadingReactions() {
-        if self.canReadHistoryValue && !self.suspendReadingReactions && !partygramShouldSkipReadMessages(self.context.sharedContext.immediateExperimentalUISettings) && !self.messageIdsWithReactionsScheduledForMarkAsSeen.isEmpty {
+        if self.canReadHistoryValue && !self.suspendReadingReactions && !self.messageIdsWithReactionsScheduledForMarkAsSeen.isEmpty {
             let messageIds = self.messageIdsWithReactionsScheduledForMarkAsSeen
 
             let _ = self.displayUnseenReactionAnimations(messageIds: Array(messageIds))
 
             self.messageIdsWithReactionsScheduledForMarkAsSeen.removeAll()
-            self.context.account.viewTracker.updateMarkReactionsAndVotesSeenForMessageIds(messageIds: messageIds)
+            self.markReactionsAndPollVotesSeenForMessageIds(messageIds)
         }
 
         if self.canReadHistoryValue {
             self.forEachVisibleMessageItemNode { itemNode in
                 itemNode.unreadMessageRangeUpdated()
             }
+        }
+    }
+
+    private func markReactionsAndPollVotesSeenForMessageIds(_ messageIds: Set<MessageId>) {
+        if messageIds.isEmpty {
+            return
+        }
+
+        if partygramShouldSkipReadMessages(self.context.sharedContext.immediateExperimentalUISettings) {
+            let _ = self.context.engine.messages.markReactionsOrPollVotesAsSeenLocally(messageIds: messageIds).startStandalone()
+        } else {
+            self.context.account.viewTracker.updateMarkReactionsAndVotesSeenForMessageIds(messageIds: messageIds)
         }
     }
 
@@ -3642,7 +3654,7 @@ public final class ChatHistoryListNodeImpl: ListViewImpl, ChatHistoryNode, ChatH
             let messageIds = self.messageIdsWithReactionsScheduledForMarkAsSeen
             let _ = self.displayUnseenReactionAnimations(messageIds: Array(messageIds))
             self.messageIdsWithReactionsScheduledForMarkAsSeen.removeAll()
-            self.context.account.viewTracker.updateMarkReactionsAndVotesSeenForMessageIds(messageIds: messageIds)
+            self.markReactionsAndPollVotesSeenForMessageIds(messageIds)
         }
     }
 
