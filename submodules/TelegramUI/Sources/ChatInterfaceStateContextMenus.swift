@@ -1187,8 +1187,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
             })))
         }
 
-        if messages.count == 1
-            && !isPinnedMessages
+        if !isPinnedMessages
             && !isReplyThreadHead
             && !context.account.isSupportUser
             && partygramShouldOfferReadUpToMessage(context.sharedContext.immediateExperimentalUISettings)

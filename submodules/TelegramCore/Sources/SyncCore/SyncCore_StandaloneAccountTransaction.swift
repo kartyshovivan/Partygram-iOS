@@ -123,10 +123,15 @@ public let telegramPostboxSeedConfiguration: SeedConfiguration = {
                 }
             }
             var previousDerivedData: DerivedDataMessageAttribute?
+            var previousDeletedMessage: PartygramDeletedMessageAttribute?
+            var previousEditHistory: PartygramEditHistoryMessageAttribute?
             for attribute in previous {
                 if let attribute = attribute as? DerivedDataMessageAttribute {
                     previousDerivedData = attribute
-                    break
+                } else if let attribute = attribute as? PartygramDeletedMessageAttribute {
+                    previousDeletedMessage = attribute
+                } else if let attribute = attribute as? PartygramEditHistoryMessageAttribute {
+                    previousEditHistory = attribute
                 }
             }
             
@@ -153,6 +158,40 @@ public let telegramPostboxSeedConfiguration: SeedConfiguration = {
                 }
                 if !found {
                     updated.append(previousDerivedData)
+                }
+            }
+            if let previousDeletedMessage {
+                var found = false
+                for attribute in updated {
+                    if attribute is PartygramDeletedMessageAttribute {
+                        found = true
+                        break
+                    }
+                }
+                if !found {
+                    updated.append(previousDeletedMessage)
+                }
+            }
+            if let previousEditHistory {
+                var found = false
+                for i in 0 ..< updated.count {
+                    if let currentEditHistory = updated[i] as? PartygramEditHistoryMessageAttribute {
+                        var mergedEntries = previousEditHistory.entries
+                        for entry in currentEditHistory.entries {
+                            if !mergedEntries.contains(entry) {
+                                mergedEntries.append(entry)
+                            }
+                        }
+                        if mergedEntries.count > 30 {
+                            mergedEntries = Array(mergedEntries.suffix(30))
+                        }
+                        updated[i] = PartygramEditHistoryMessageAttribute(entries: mergedEntries)
+                        found = true
+                        break
+                    }
+                }
+                if !found {
+                    updated.append(previousEditHistory)
                 }
             }
         },
