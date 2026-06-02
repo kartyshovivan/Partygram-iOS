@@ -1065,6 +1065,8 @@ extension ChatControllerImpl {
                 
                 let _ = (strongSelf.shouldDivertMessagesToScheduled(messages: transformedMessages)
                 |> deliverOnMainQueue).start(next: { shouldDivert in
+                    strongSelf.applyPartygramReadOnActionIfNeeded()
+
                     let signal: Signal<[MessageId?], NoError>
                     var shouldOpenScheduledMessages = false
                     if forwardSourcePeerIds.count > 1 {
@@ -1137,6 +1139,7 @@ extension ChatControllerImpl {
                 case .hashTagSearch:
                     break
                 case .quickReplyMessageInput:
+                    strongSelf.applyPartygramReadOnActionIfNeeded()
                     customChatContents.enqueueMessages(messages: messages)
                     strongSelf.chatDisplayNode.historyNode.scrollToEndOfHistory()
                 case let .businessLinkSetup(link):
