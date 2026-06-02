@@ -8715,7 +8715,9 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
             }
             
             if commit || !isScheduledMessages {
-                self.commitPurposefulAction()
+                if !self.commitPurposefulAction() {
+                    self.applyPartygramReadOnActionIfNeeded()
+                }
 
                 let transformedMessages = self.transformEnqueueMessages(messages, postpone: postpone)
 
@@ -9034,6 +9036,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
             
             let sendPaidMessageStars = self.presentationInterfaceState.sendPaidMessageStars
             if self.context.engine.messages.enqueueOutgoingMessageWithChatContextResult(to: peerId, threadId: self.chatLocation.threadId, botId: results.botId, result: result, replyToMessageId: replyMessageSubject?.subjectModel, hideVia: hideVia, silentPosting: silentPosting, scheduleTime: scheduleTime, sendPaidMessageStars: sendPaidMessageStars, postpone: postpone) {
+                self.applyPartygramReadOnActionIfNeeded()
                 self.chatDisplayNode.setupSendActionOnViewUpdate({ [weak self] in
                     if let strongSelf = self {
                         strongSelf.chatDisplayNode.collapseInput()
@@ -10096,12 +10099,15 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
         })
     }
     
-    func commitPurposefulAction() {
+    @discardableResult
+    func commitPurposefulAction() -> Bool {
         if let purposefulAction = self.purposefulAction {
             self.purposefulAction = nil
             self.applyPartygramReadOnActionIfNeeded()
             purposefulAction()
+            return true
         }
+        return false
     }
 
     func applyPartygramReadOnActionIfNeeded() {

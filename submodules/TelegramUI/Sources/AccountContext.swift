@@ -559,8 +559,16 @@ public final class AccountContextImpl: AccountContext {
             let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? .defaultSettings
             self.account.setShouldSuppressLocalInputActivities(partygramShouldSuppressTypingActivity(settings))
             let shouldSuppressOnlinePresence = partygramShouldSuppressOnlinePresence(settings)
+            let wasSuppressingOnlinePresence = self.partygramSuppressOnlinePresence
             self.account.setShouldSuppressOnlinePresence(shouldSuppressOnlinePresence)
             self.partygramSuppressOnlinePresence = shouldSuppressOnlinePresence
+            if shouldSuppressOnlinePresence && !wasSuppressingOnlinePresence {
+                let timestamp = Int32(self.account.network.globalTime)
+                if timestamp > self.partygramLastLocalPresenceActivityTimestamp {
+                    self.partygramLastLocalPresenceActivityTimestamp = timestamp
+                }
+                updatePartygramGhostLastOnlineTimestamp(accountManager: self.sharedContext.accountManager, timestamp: timestamp)
+            }
             (self.animationRenderer as? DCTMultiAnimationRendererImpl)?.useYuvA = settings.compressedEmojiCache
         })
 
