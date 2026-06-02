@@ -1185,84 +1185,27 @@ func peerInfoScreenData(
             }
             let status: Signal<PeerInfoStatusData?, NoError>
             if isMyProfile {
-                status = Signal<PeerInfoStatusData?, NoError> { subscriber in
-                    final class Manager {
-                        var settings: ExperimentalUISettings = .defaultSettings
-                        var accountPresenceSettings: PartygramAccountPresenceSettings = .defaultSettings
-                        var updateManager: QueueLocalObject<PeerPresenceStatusManager>? = nil
+                status = context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.experimentalUISettings])
+                |> map { sharedData -> PeerInfoStatusData? in
+                    let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? .defaultSettings
+                    guard settings.partygramGhostMode && settings.partygramGhostDontSendOnline else {
+                        return nil
                     }
-                    let manager = Atomic<Manager>(value: Manager())
-                    let notify: () -> Void = {
-                        let data = manager.with { manager -> PeerInfoStatusData? in
-                            let settings = manager.settings
-                            guard settings.partygramGhostMode && settings.partygramGhostDontSendOnline else {
-                                return nil
-                            }
-
-                            let timestamp = Int32(CFAbsoluteTimeGetCurrent() + NSTimeIntervalSince1970)
-                            let accountPresenceSettings = manager.accountPresenceSettings
-                            let remoteOnlineUntilTimestamp = accountPresenceSettings.remoteOnlineUntilTimestamp
-                            if remoteOnlineUntilTimestamp >= timestamp {
-                                let presence = TelegramUserPresence(status: .present(until: remoteOnlineUntilTimestamp), lastActivity: remoteOnlineUntilTimestamp)
-                                let (text, isActivity) = stringAndActivityForUserPresence(strings: strings, dateTimeFormat: dateTimeFormat, presence: EnginePeer.Presence(presence), relativeTo: timestamp, expanded: true, showSeconds: settings.partygramShowSecondsInMessageTime)
-                                return PeerInfoStatusData(text: text, isActivity: isActivity, key: nil)
-                            }
-
-                            let lastOnlineTimestamp = max(settings.partygramGhostLastOnlineTimestamp, accountPresenceSettings.remoteLastOnlineTimestamp, remoteOnlineUntilTimestamp)
-                            let text: String
-                            if lastOnlineTimestamp > 0 {
-                                text = stringForUserPresenceLastSeenTimestamp(
-                                    strings: strings,
-                                    dateTimeFormat: dateTimeFormat,
-                                    timestamp: lastOnlineTimestamp,
-                                    relativeTo: timestamp,
-                                    showSeconds: settings.partygramShowSecondsInMessageTime
-                                )
-                            } else {
-                                text = strings.LastSeen_Lately
-                            }
-                            return PeerInfoStatusData(text: text, isActivity: false, key: nil)
-                        }
-                        subscriber.putNext(data)
+                    let timestamp = settings.partygramGhostLastOnlineTimestamp
+                    let text: String
+                    if timestamp > 0 {
+                        text = stringForUserPresenceLastSeenTimestamp(
+                            strings: strings,
+                            dateTimeFormat: dateTimeFormat,
+                            timestamp: timestamp,
+                            relativeTo: Int32(context.account.network.globalTime),
+                            showSeconds: settings.partygramShowSecondsInMessageTime
+                        )
+                    } else {
+                        text = strings.LastSeen_Lately
                     }
-
-                    let disposable = (combineLatest(
-                        context.sharedContext.accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.experimentalUISettings]),
-                        context.account.postbox.preferencesView(keys: [PreferencesKeys.partygramAccountPresenceSettings])
-                    )
-                    |> deliverOnMainQueue).start(next: { sharedData, preferencesView in
-                        let settings = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) ?? .defaultSettings
-                        let accountPresenceSettings = preferencesView.values[PreferencesKeys.partygramAccountPresenceSettings]?.get(PartygramAccountPresenceSettings.self) ?? .defaultSettings
-                        let _ = manager.with { manager -> Void in
-                            manager.settings = settings
-                            manager.accountPresenceSettings = accountPresenceSettings
-
-                            let timestamp = Int32(CFAbsoluteTimeGetCurrent() + NSTimeIntervalSince1970)
-                            if settings.partygramGhostMode && settings.partygramGhostDontSendOnline && accountPresenceSettings.remoteOnlineUntilTimestamp >= timestamp {
-                                let presence = TelegramUserPresence(status: .present(until: accountPresenceSettings.remoteOnlineUntilTimestamp), lastActivity: accountPresenceSettings.remoteOnlineUntilTimestamp)
-                                let updateManager: QueueLocalObject<PeerPresenceStatusManager>
-                                if let current = manager.updateManager {
-                                    updateManager = current
-                                } else {
-                                    updateManager = QueueLocalObject<PeerPresenceStatusManager>(queue: .mainQueue(), generate: {
-                                        return PeerPresenceStatusManager(update: {
-                                            notify()
-                                        })
-                                    })
-                                    manager.updateManager = updateManager
-                                }
-                                updateManager.with { updateManager in
-                                    updateManager.reset(presence: EnginePeer.Presence(presence))
-                                }
-                            } else {
-                                manager.updateManager = nil
-                            }
-                        }
-                        notify()
-                    })
-                    return disposable
+                    return PeerInfoStatusData(text: text, isActivity: false, key: nil)
                 }
-                |> distinctUntilChanged
             } else {
                 status = Signal<PeerInfoStatusData?, NoError> { subscriber in
                 class Manager {
